@@ -1,0 +1,1 @@
+export async function api<T=any>(path:string,init?:RequestInit):Promise<T>{const response=await fetch(path,{...init,headers:{'Content-Type':'application/json',...(init?.headers||{})}});const payload=await response.json().catch(()=>({}));if(!response.ok||payload.success===false)throw new Error(payload.error||'Request failed');return payload.data??payload}

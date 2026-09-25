@@ -1,0 +1,6 @@
+export type MessageStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'partial' | 'failed' | 'cancelled';
+export interface FirebaseApp { id:string; appName:string; appId:string; projectId:string; serviceAccountEncrypted:string; createdAt:string; updatedAt:string; isActive:boolean }
+export interface PublicFirebaseApp extends Omit<FirebaseApp,'serviceAccountEncrypted'> { hasCredentials:true }
+export interface MessageRecipient { id:string; messageId:string; appId:string; appName:string; packageName?:string; status:'pending'|'sending'|'sent'|'failed'; fcmMessageId?:string; errorMessage?:string; retryCount:number; createdAt:string; updatedAt:string }
+export interface Message { id:string; title:string; body:string; messageType:'notification'|'data'; targetType?:'topic'|'token'; targetValue?:string; data?:Record<string,string>; imageUrl?:string; scheduledTime?:string; timezone?:string; sendImmediately:boolean; status:MessageStatus; totalAppsTargeted:number; totalSent:number; totalFailed:number; appIds:string[]; recipients:MessageRecipient[]; createdAt:string; sentAt?:string; updatedAt:string }
+export interface DeliveryLog { id:string; messageId:string; appId:string; appName:string; success:boolean; fcmMessageId?:string; errorMessage?:string; retryCount:number; timestamp:string }
