@@ -4,6 +4,14 @@
 
 * {
   border-color: theme("colors.border");
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
 }
 
 body {
@@ -16,17 +24,606 @@ body {
   color: #0A0D13;
 }
 
-/* thin, quiet scrollbars so dense tables don't look default-browser */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Login page: fixed to the viewport so the desktop login never creates a page scrollbar. */
+.login-preview-page {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 620px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(100, 82, 220, 0.13), transparent 28%),
+    radial-gradient(circle at 58% 92%, rgba(40, 93, 170, 0.10), transparent 30%),
+    #f6f7fa;
+  color: #252938;
 }
-::-webkit-scrollbar-track {
+
+.login-preview-shell {
+  width: min(1180px, 100%);
+  height: 100%;
+  margin: 0 auto;
+  padding: 28px 42px;
+  display: grid;
+  grid-template-columns: minmax(360px, 0.86fr) minmax(430px, 1.14fr);
+  align-items: center;
+  gap: 40px;
+}
+
+.login-form-panel {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-form-inner {
+  width: min(390px, 100%);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 42px;
+  color: #292c39;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+}
+
+.login-brand-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #f2c678;
+  color: #101827;
+  box-shadow: 0 7px 18px rgba(242, 198, 120, 0.25);
+}
+
+.login-copy {
+  margin-bottom: 25px;
+}
+
+.login-kicker {
+  color: #7765d5;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.login-copy h1 {
+  margin: 8px 0 6px;
+  color: #272a36;
+  font-size: 30px;
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -1.15px;
+}
+
+.login-copy p {
+  margin: 0;
+  max-width: 330px;
+  color: #8a8d99;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.login-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.login-fields label {
+  color: #5f6370;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.login-input {
+  width: 100%;
+  height: 44px !important;
+  margin-top: 7px;
+  border: 1px solid #e1e3e9 !important;
+  border-radius: 9px !important;
+  background: #fff !important;
+  color: #2d303b !important;
+  padding: 0 13px !important;
+  font-size: 10px !important;
+  outline: none;
+  box-shadow: 0 3px 15px rgba(30, 35, 55, 0.025);
+}
+
+.login-input::placeholder {
+  color: #afb2bc !important;
+}
+
+.login-input:focus {
+  border-color: #9b8fe2 !important;
+  box-shadow: 0 0 0 3px rgba(119, 101, 213, 0.08);
+}
+
+.login-password-wrap {
+  position: relative;
+}
+
+.login-password-wrap .login-input {
+  padding-right: 42px !important;
+}
+
+.login-eye {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 0;
   background: transparent;
+  color: #9a9da8;
+  cursor: pointer;
 }
-::-webkit-scrollbar-thumb {
-  background: theme("colors.border");
-  border-radius: 999px;
+
+.login-button {
+  width: 100%;
+  height: 44px !important;
+  margin-top: 1px;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: #f2c678 !important;
+  color: #111827 !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 18px rgba(190, 148, 66, 0.16);
+}
+
+.login-button:hover {
+  background: #f7d489 !important;
+}
+
+.login-error {
+  margin: -3px 0 0;
+  color: #d65c67;
+  font-size: 9px;
+}
+
+.login-secure {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 22px;
+  color: #9699a4;
+  font-size: 8px;
+}
+
+.login-secure svg {
+  color: #7765d5;
+}
+
+.login-phone-panel {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone {
+  width: 286px;
+  height: 578px;
+  padding: 7px;
+  position: relative;
+  border-radius: 43px;
+  background: linear-gradient(145deg, #fbfbfb, #6f7075 47%, #f9f9f9);
+  box-shadow:
+    0 25px 55px rgba(27, 31, 53, 0.22),
+    0 7px 16px rgba(27, 31, 53, 0.13),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.phone::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: 132px;
+  width: 3px;
+  height: 51px;
+  border-radius: 3px 0 0 3px;
+  background: #64656a;
+  box-shadow: 0 61px 0 #64656a;
+}
+
+.phone::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  top: 153px;
+  width: 3px;
+  height: 76px;
+  border-radius: 0 3px 3px 0;
+  background: #64656a;
+}
+
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 37px;
+  background:
+    radial-gradient(ellipse 90% 43% at 82% 25%, rgba(49, 195, 238, 0.82), transparent 59%),
+    radial-gradient(ellipse 112% 52% at 75% 57%, rgba(86, 87, 224, 0.82), transparent 63%),
+    linear-gradient(152deg, #17377f 4%, #123e9f 36%, #1764d0 62%, #0d2c76 100%);
+}
+
+.phone-screen::before {
+  content: "";
+  position: absolute;
+  left: -17%;
+  top: 54%;
+  width: 136%;
+  height: 24%;
+  border-radius: 50% 58% 0 0;
+  transform: rotate(-12deg);
+  background: linear-gradient(115deg, rgba(12, 51, 151, 0.97), rgba(61, 85, 220, 0.92) 58%, rgba(120, 102, 232, 0.67));
+}
+
+.phone-screen::after {
+  content: "";
+  position: absolute;
+  left: -18%;
+  top: 72%;
+  width: 140%;
+  height: 42%;
+  border-radius: 52% 48% 0 0;
+  transform: rotate(13deg);
+  background: linear-gradient(120deg, #09255f, #153eac 45%, rgba(94, 91, 224, 0.82));
+}
+
+.phone-status {
+  position: absolute;
+  z-index: 4;
+  top: 17px;
+  left: 22px;
+  right: 22px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dynamic-island {
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  width: 82px;
+  height: 24px;
+  transform: translateX(-50%);
+  border-radius: 18px;
+  background: #050505;
+}
+
+.dynamic-island i {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #142e4e;
+  box-shadow: 0 0 0 2px #0c1622;
+}
+
+.status-icons {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.status-icons b {
+  font-size: 7px;
+  letter-spacing: -2px;
+}
+
+.status-icons span {
+  font-size: 14px;
+  transform: rotate(90deg);
+}
+
+.status-icons em {
+  width: 23px;
+  height: 11px;
+  position: relative;
+  display: inline-block;
+  border: 1.4px solid #fff;
+  border-radius: 3px;
+}
+
+.status-icons em::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 1px;
+  background: #fff;
+}
+
+.status-icons em::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  top: 3px;
+  width: 2px;
+  height: 4px;
+  border-radius: 0 1px 1px 0;
+  background: #fff;
+}
+
+.lock-date {
+  position: absolute;
+  z-index: 4;
+  top: 72px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: #e8f2ff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.lock-time {
+  position: absolute;
+  z-index: 4;
+  top: 99px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: #fff;
+  font-size: 57px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -4px;
+}
+
+.notification-card {
+  position: absolute;
+  z-index: 5;
+  top: 183px;
+  left: 13px;
+  right: 13px;
+  min-height: 113px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 13px 11px 12px 13px;
+  border-radius: 18px;
+  background: rgba(235, 246, 255, 0.90);
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.10);
+  backdrop-filter: blur(14px);
+}
+
+.notification-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.notification-title {
+  margin-bottom: 9px;
+  color: #10254a;
+  font-size: 9px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notification-title strong {
+  font-weight: 800;
+}
+
+.notification-title span {
+  font-weight: 500;
+}
+
+.notification-body {
+  display: grid;
+  gap: 7px;
+  color: #172c50;
+  font-size: 9.5px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.whatsapp-icon {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  object-fit: cover;
+  margin-top: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
+}
+
+.lock-shortcuts {
+  position: absolute;
+  z-index: 4;
+  left: 32px;
+  right: 32px;
+  bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.lock-shortcuts span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(5, 26, 73, 0.48);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.10);
+  font-size: 14px;
+}
+
+.home-indicator {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: 14px;
+  width: 95px;
+  height: 4px;
+  border-radius: 4px;
+  transform: translateX(-50%);
+  background: #fff;
+}
+
+/* Keep the complete composition inside the viewport at shorter desktop heights. */
+@media (max-height: 760px) and (min-width: 801px) {
+  .login-preview-shell {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+
+  .login-brand {
+    margin-bottom: 27px;
+  }
+
+  .phone {
+    width: 250px;
+    height: 505px;
+  }
+
+  .lock-date {
+    top: 64px;
+    font-size: 14px;
+  }
+
+  .lock-time {
+    top: 89px;
+    font-size: 50px;
+  }
+
+  .notification-card {
+    top: 160px;
+  }
+
+  .lock-shortcuts {
+    bottom: 34px;
+  }
+}
+
+/* Narrow screens stay side-by-side and scale the phone instead of creating a page scrollbar. */
+@media (max-width: 800px) {
+  .login-preview-page {
+    min-height: 0;
+  }
+
+  .login-preview-shell {
+    min-height: 100%;
+    padding: 20px;
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 0.82fr);
+    gap: 20px;
+  }
+
+  .login-form-inner {
+    width: min(360px, 100%);
+  }
+
+  .phone {
+    width: 210px;
+    height: 425px;
+    border-radius: 34px;
+    padding: 6px;
+  }
+
+  .phone-screen {
+    border-radius: 29px;
+  }
+
+  .phone-status {
+    top: 13px;
+    left: 17px;
+    right: 17px;
+    font-size: 9px;
+  }
+
+  .dynamic-island {
+    width: 61px;
+    height: 18px;
+  }
+
+  .lock-date {
+    top: 53px;
+    font-size: 12px;
+  }
+
+  .lock-time {
+    top: 74px;
+    font-size: 41px;
+  }
+
+  .notification-card {
+    top: 132px;
+    left: 9px;
+    right: 9px;
+    min-height: 84px;
+    padding: 9px;
+    border-radius: 13px;
+  }
+
+  .notification-title {
+    margin-bottom: 6px;
+    font-size: 6.7px;
+  }
+
+  .notification-body {
+    gap: 5px;
+    font-size: 7px;
+  }
+
+  .whatsapp-icon {
+    width: 31px;
+    height: 31px;
+    margin-top: 14px;
+    border-radius: 7px;
+  }
+
+  .lock-shortcuts {
+    left: 23px;
+    right: 23px;
+    bottom: 29px;
+  }
+
+  .lock-shortcuts span {
+    width: 29px;
+    height: 29px;
+    font-size: 11px;
+  }
+
+  .home-indicator {
+    bottom: 10px;
+    width: 70px;
+    height: 3px;
+  }
+}
+
+/* Existing app scrollbar remains available for dashboard/table views, but not the login composition. */
+.login-preview-page,
+.login-preview-page * {
+  scrollbar-width: none;
+}
+.login-preview-page::-webkit-scrollbar,
+.login-preview-page *::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
