@@ -189,7 +189,7 @@ export function ComposeClient() {
                 </button>
 
                 {appSearchOpen && (
-                  <div className="target-app-picker-menu">
+                  <div className="target-app-picker-menu" onClick={(event) => event.stopPropagation()}>
                     <div className="target-app-picker-search">
                       <Search size={14} />
                       <input
