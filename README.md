@@ -118,7 +118,7 @@ npm install && npm run build
 3. Use the start command:
 
 ```bash
-npm run start
+npx next start -p $PORT
 ```
 
 4. Add the same environment variables from `.env.local` in Render's environment section.
