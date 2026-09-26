@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    setAuthCookie();
+    await setAuthCookie();
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
