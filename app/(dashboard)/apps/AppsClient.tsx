@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Smartphone, Trash2, Pencil } from "lucide-react";
+import { Plus, Smartphone, Trash2, Pencil, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { Card, EmptyState, Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Field";
@@ -13,6 +13,13 @@ export function AppsClient() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState<FirebaseAppPublic | null>(null);
+  const [deleteApp, setDeleteApp] = useState<FirebaseAppPublic | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  function showToast(type: "success" | "error", message: string) {
+    setToast({ type, message });
+    window.setTimeout(() => setToast(null), 3200);
+  }
 
   async function loadApps() {
     setLoading(true);
@@ -28,17 +35,36 @@ export function AppsClient() {
 
   async function handleToggleActive(app: FirebaseAppPublic) {
     setApps((prev) => prev.map((a) => (a.id === app.id ? { ...a, is_active: !a.is_active } : a)));
-    await fetch(`/api/apps/${app.id}`, {
+    const res = await fetch(`/api/apps/${app.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !app.is_active }),
     });
+    if (!res.ok) {
+      setApps((prev) => prev.map((a) => (a.id === app.id ? { ...a, is_active: app.is_active } : a)));
+      const data = await res.json().catch(() => null);
+      showToast("error", data?.error ?? "Unable to update app status");
+      return;
+    }
+    showToast("success", `${app.name} is now ${!app.is_active ? "active" : "inactive"}`);
   }
 
-  async function handleDelete(app: FirebaseAppPublic) {
-    if (!confirm(`Remove "${app.name}"? This can't be undone.`)) return;
+  function handleDelete(app: FirebaseAppPublic) {
+    setDeleteApp(app);
+  }
+
+  async function confirmDelete() {
+    if (!deleteApp) return;
+    const app = deleteApp;
+    setDeleteApp(null);
+    const res = await fetch(`/api/apps/${app.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      showToast("error", data?.error ?? "Unable to delete app");
+      return;
+    }
     setApps((prev) => prev.filter((a) => a.id !== app.id));
-    await fetch(`/api/apps/${app.id}`, { method: "DELETE" });
+    showToast("success", `${app.name} deleted successfully`);
   }
 
   return (
@@ -138,11 +164,40 @@ export function AppsClient() {
         open={modalOpen}
         editingApp={editingApp}
         onClose={() => setModalOpen(false)}
-        onSaved={() => {
+        onSaved={(message) => {
           setModalOpen(false);
           loadApps();
+          showToast("success", message);
         }}
       />
+
+      {deleteApp && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-white">Delete app?</h2>
+                <p className="mt-2 text-xs leading-5 text-ink2">Remove <span className="font-medium text-white">"{deleteApp.name}"</span>? This action cannot be undone.</p>
+              </div>
+              <button type="button" onClick={() => setDeleteApp(null)} className="text-ink2 transition hover:text-white" aria-label="Close delete confirmation"><X size={16} /></button>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setDeleteApp(null)}>Cancel</Button>
+              <Button type="button" variant="danger" onClick={confirmDelete}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed right-5 top-5 z-[130] animate-[toast-in_.22s_ease-out]">
+          <div className="flex min-w-[280px] max-w-sm items-start gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-2xl">
+            {toast.type === "success" ? <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-wave" /> : <AlertCircle size={18} className="mt-0.5 shrink-0 text-danger" />}
+            <p className="flex-1 text-xs leading-5 text-white">{toast.message}</p>
+            <button type="button" onClick={() => setToast(null)} className="text-ink2 transition hover:text-white" aria-label="Close notification"><X size={14} /></button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -156,7 +211,7 @@ function AppFormModal({
   open: boolean;
   editingApp: FirebaseAppPublic | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (message: string) => void;
 }) {
   const [name, setName] = useState("");
   const [defaultTopic, setDefaultTopic] = useState("");
@@ -165,6 +220,7 @@ function AppFormModal({
   const [serviceAccount, setServiceAccount] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
     if (editingApp) {
@@ -172,12 +228,14 @@ function AppFormModal({
       setDefaultTopic(editingApp.default_topic ?? "");
       setPackageName(editingApp.package_name ?? "");
       setAppIconUrl(editingApp.app_icon_url ?? "");
+      setIsActive(editingApp.is_active);
     } else {
       setName("");
       setDefaultTopic("");
       setPackageName("");
       setAppIconUrl("");
       setServiceAccount("");
+      setIsActive(true);
     }
     setError(null);
   }, [editingApp, open]);
@@ -197,12 +255,12 @@ function AppFormModal({
       ? await fetch(`/api/apps/${editingApp.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, defaultTopic, packageName, appIconUrl }),
+          body: JSON.stringify({ name, defaultTopic, packageName, appIconUrl, isActive }),
         })
       : await fetch("/api/apps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, defaultTopic, packageName, appIconUrl, serviceAccount }),
+          body: JSON.stringify({ name, defaultTopic, packageName, appIconUrl, serviceAccount, isActive }),
         });
 
     const data = await res.json();
@@ -213,7 +271,7 @@ function AppFormModal({
       return;
     }
 
-    onSaved();
+    onSaved(editingApp ? "App updated successfully" : "App created successfully");
   }
 
   return (
@@ -240,6 +298,20 @@ function AppFormModal({
             onChange={(e) => setPackageName(e.target.value)}
             placeholder="com.example.app"
           />
+        </div>
+
+        <div>
+          <Label>Status</Label>
+          <div className="mt-2 flex gap-3">
+            <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white transition hover:border-wave/50">
+              <input type="radio" name="app-status" checked={isActive} onChange={() => setIsActive(true)} className="h-4 w-4 accent-[#3FD6C6]" />
+              Active
+            </label>
+            <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white transition hover:border-danger/50">
+              <input type="radio" name="app-status" checked={!isActive} onChange={() => setIsActive(false)} className="h-4 w-4 accent-[#FF5C68]" />
+              Inactive
+            </label>
+          </div>
         </div>
 
         <div>
