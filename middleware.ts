@@ -7,7 +7,9 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const isPublic = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(\`\${path}/\`));
+  const isPublic = PUBLIC_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
 
   if (isPublic) return NextResponse.next();
 
