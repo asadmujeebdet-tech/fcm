@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  border-color: theme("colors.border");
+}
+
+body {
+  background-color: theme("colors.ink");
+  color: #EDEEF3;
+}
+
+::selection {
+  background-color: theme("colors.signal.DEFAULT");
+  color: #0A0D13;
+}
+
+/* thin, quiet scrollbars so dense tables don't look default-browser */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: theme("colors.border");
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

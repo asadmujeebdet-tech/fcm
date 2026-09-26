@@ -1,0 +1,84 @@
+export type MessageFormat = "notification" | "data";
+export type MessageStatus =
+  | "draft"
+  | "scheduled"
+  | "sending"
+  | "sent"
+  | "partial_failure"
+  | "failed"
+  | "canceled";
+export type TargetStatus = "pending" | "sent" | "failed";
+
+export interface FirebaseApp {
+  id: string;
+  user_id: string;
+  name: string;
+  project_id: string;
+  package_name: string | null;
+  app_icon_url: string | null;
+  default_topic: string;
+  service_account_encrypted: string;
+  encryption_iv: string;
+  encryption_tag: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type FirebaseAppPublic = Omit<
+  FirebaseApp,
+  "service_account_encrypted" | "encryption_iv" | "encryption_tag"
+>;
+
+export interface Message {
+  id: string;
+  user_id: string;
+  format: MessageFormat;
+  topic: string;
+
+  notification_title: string | null;
+  notification_body: string | null;
+  notification_image: string | null;
+
+  data_app_url: string | null;
+  data_title: string | null;
+  data_short_desc: string | null;
+  data_long_desc: string | null;
+  data_icon: string | null;
+  data_feature: string | null;
+
+  status: MessageStatus;
+  scheduled_at: string | null;
+  sent_at: string | null;
+
+  total_apps_targeted: number;
+  total_sent: number;
+  total_failed: number;
+  sent_count: number;
+  delivered: number;
+  delivery_rate: number | null;
+  impressions: number;
+  opened: number;
+  open_rate: number | null;
+  dismissed: number;
+  dismiss_rate: number | null;
+  delivery_failed: number;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MessageTarget {
+  id: string;
+  message_id: string;
+  app_id: string;
+  status: TargetStatus;
+  fcm_message_id: string | null;
+  error_message: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface MessageWithTargets extends Message {
+  message_targets: (MessageTarget & { firebase_apps: { name: string } | null })[];
+}
