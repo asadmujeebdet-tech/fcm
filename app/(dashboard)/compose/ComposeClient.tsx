@@ -314,11 +314,7 @@ export function ComposeClient() {
 
           <div className="live-preview-modal">
             <div className="live-preview-modal-header">
-              <div>
-                <p className="live-preview-eyebrow">FCM</p>
-                <h2>Live Preview</h2>
-                <p>Updates as you edit the notification.</p>
-              </div>
+              <div />
               <button
                 type="button"
                 onClick={() => setShowLivePreview(false)}
@@ -349,7 +345,7 @@ export function ComposeClient() {
                     <div className="notification-text">
                       <div className="notification-title">
                         <strong>{notificationTitle.trim() || "Notification title"}</strong>
-                        <span> · FCM · Now</span>
+                        <span> · Now</span>
                       </div>
                       <div className="notification-body">
                         {(notificationBody.trim() || "Your notification body will appear here.")
