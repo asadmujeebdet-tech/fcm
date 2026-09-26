@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { BellRing, Eye, EyeOff, LockKeyhole } from "lucide-react";
+import { BellRing, Eye, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Input, Label } from "@/components/ui/Field";
@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/Button";
 
 const DEFAULT_EMAIL = process.env.NEXT_PUBLIC_EMAIL ?? process.env.EMAIL ?? "";
 const DEFAULT_PASSWORD = process.env.NEXT_PUBLIC_PASSWORD ?? process.env.PASSWORD ?? "";
-const WHATSAPP_ICON = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS90_MbyAab03ginKOTiuz932RR0tJmH-J7KzSxk65CQ&s=10";
+const WHATSAPP_ICON =
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS90_MbyAab03ginKOTiuz932RRf0tJmH-J7KzSxk65CQ&s=10";
 
 export default function LoginPage() {
   return (
@@ -19,7 +20,13 @@ export default function LoginPage() {
   );
 }
 
-function LoginForm({ defaultEmail, defaultPassword }: { defaultEmail: string; defaultPassword: string }) {
+function LoginForm({
+  defaultEmail,
+  defaultPassword,
+}: {
+  defaultEmail: string;
+  defaultPassword: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(defaultEmail);
@@ -59,7 +66,6 @@ function LoginForm({ defaultEmail, defaultPassword }: { defaultEmail: string; de
             </div>
 
             <div className="login-copy">
-              <span className="login-kicker">FCM WORKSPACE</span>
               <h1>Welcome back</h1>
               <p>Broadcast to every app you manage, from one place.</p>
             </div>
@@ -105,11 +111,6 @@ function LoginForm({ defaultEmail, defaultPassword }: { defaultEmail: string; de
                 {loading ? "Signing in..." : "Login"}
               </Button>
             </form>
-
-            <div className="login-secure">
-              <LockKeyhole size={15} />
-              <span>Secure authentication</span>
-            </div>
           </div>
         </div>
 
@@ -121,7 +122,9 @@ function LoginForm({ defaultEmail, defaultPassword }: { defaultEmail: string; de
                   <span>9:41</span>
                   <div className="dynamic-island"><i /></div>
                   <div className="status-icons">
-                    <b>▮▮▮</b><span>⌁</span><em />
+                    <b>▮▮▮</b>
+                    <span>⌁</span>
+                    <em />
                   </div>
                 </div>
 
@@ -139,7 +142,29 @@ function LoginForm({ defaultEmail, defaultPassword }: { defaultEmail: string; de
                       <div>🎤 Voice message (00:20)</div>
                     </div>
                   </div>
-                  <img src={WHATSAPP_ICON} alt="WhatsApp" className="whatsapp-icon" />
+
+                  <div className="whatsapp-icon-wrap">
+                    <img
+                      src={WHATSAPP_ICON}
+                      alt="WhatsApp"
+                      className="whatsapp-icon"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                        event.currentTarget.parentElement?.classList.add("whatsapp-fallback");
+                      }}
+                    />
+                    <svg
+                      className="whatsapp-fallback-icon"
+                      viewBox="0 0 48 48"
+                      aria-hidden="true"
+                    >
+                      <circle cx="24" cy="24" r="23" fill="#25D366" />
+                      <path
+                        fill="#fff"
+                        d="M34.8 28.2c-.5-.3-3-1.5-3.5-1.7-.5-.2-.8-.3-1.1.3-.3.5-1.2 1.7-1.4 2-.3.3-.5.4-1 .1-2.7-1.3-4.4-2.4-6.2-5.4-.5-.9.5-.8 1.5-2.6.2-.4.1-.7-.1-1-.1-.3-1.1-2.6-1.5-3.6-.4-.9-.8-.8-1.1-.8h-.9c-.3 0-.8.1-1.2.5-.4.4-1.6 1.6-1.6 3.9s1.6 4.5 1.8 4.8c.2.3 3.1 4.8 7.5 6.7 2.8 1.2 3.9 1.3 5.3 1.1.9-.1 3-1.2 3.4-2.3.4-1.1.4-2 .3-2.3-.2-.2-.5-.3-.9-.5Z"
+                      />
+                    </svg>
+                  </div>
                 </div>
 
                 <div className="lock-shortcuts">
