@@ -172,29 +172,34 @@ export function ComposeClient() {
 
           <div className="space-y-6">
             <Card className="p-5">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <Label>Target apps</Label>
-                <span className="rounded-full border border-border bg-surface2 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-ink2">
-                  {selectedAppIds.size} selected
-                </span>
+              <div className="target-apps-heading">
+                <div>
+                  <Label>Target apps</Label>
+                  <p className="target-apps-subtitle">Choose where this notification will be delivered.</p>
+                </div>
+                <span className="target-apps-count">{selectedAppIds.size} selected</span>
               </div>
 
-              <div className="relative mb-3">
+              <div className="target-app-search">
                 <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink2" />
                 <Input
                   value={appSearch}
                   onChange={(e) => setAppSearch(e.target.value)}
                   placeholder="Search apps..."
-                  className="pl-8"
+                  className="pl-9"
                 />
               </div>
 
-              <div className="mb-3 flex gap-3 text-xs text-ink2">
-                <button type="button" onClick={selectAll} className="hover:text-signal">Select all</button>
-                <button type="button" onClick={deselectAll} className="hover:text-signal">Deselect all</button>
+              <div className="target-apps-actions">
+                <button type="button" onClick={selectAll} className="target-app-action">
+                  Select All
+                </button>
+                <button type="button" onClick={deselectAll} className="target-app-action target-app-action-muted">
+                  Deselect All
+                </button>
               </div>
 
-              <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border border-border bg-surface2/30 p-2">
+              <div className="target-apps-list">
                 {loadingApps ? (
                   <p className="px-2 py-4 text-center text-xs text-ink2">Loading apps...</p>
                 ) : filteredApps.length === 0 ? (
@@ -203,13 +208,13 @@ export function ComposeClient() {
                   filteredApps.map((app) => (
                     <label
                       key={app.id}
-                      className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-white hover:bg-surface2"
+                      className="target-app-row"
                     >
                       <input
                         type="checkbox"
                         checked={selectedAppIds.has(app.id)}
                         onChange={() => toggleApp(app.id)}
-                        className="accent-signal"
+                        className="target-app-checkbox"
                       />
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface2 text-ink2">
                         {app.app_icon_url ? (
