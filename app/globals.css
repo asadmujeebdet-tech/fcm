@@ -438,15 +438,16 @@ body {
 }
 
 .whatsapp-icon-wrap {
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   flex: none;
   position: relative;
   margin-top: 20px;
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 2px 7px rgba(0,0,0,.14);
-  background: #25D366;
+  background: transparent;
+  box-shadow: none;
 }
 
 .whatsapp-icon {
@@ -934,5 +935,211 @@ body {
   *, *::before, *::after {
     animation-duration: .001ms !important;
     transition-duration: .001ms !important;
+  }
+}
+
+
+/* Compose live preview */
+.live-preview-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #2a3344;
+  border-radius: 9px;
+  background: #121721;
+  color: #EDEEF3;
+  font-size: 11px;
+  font-weight: 700;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+
+.live-preview-trigger:hover {
+  border-color: #FF9142;
+  background: #171d28;
+  transform: translateY(-1px);
+}
+
+.live-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.live-preview-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: rgba(3, 6, 12, .78);
+  backdrop-filter: blur(8px);
+  cursor: default;
+}
+
+.live-preview-modal {
+  position: relative;
+  z-index: 1;
+  width: min(860px, 100%);
+  height: min(720px, calc(100dvh - 48px));
+  display: grid;
+  grid-template-columns: 1fr 310px;
+  align-items: center;
+  gap: 30px;
+  padding: 28px 34px;
+  overflow: hidden;
+  border: 1px solid #293244;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 82% 25%, rgba(63,214,198,.08), transparent 30%),
+    radial-gradient(circle at 18% 80%, rgba(255,145,66,.06), transparent 32%),
+    #0D1119;
+  box-shadow: 0 30px 90px rgba(0,0,0,.45);
+}
+
+.live-preview-modal-header {
+  align-self: center;
+  padding-left: 12px;
+}
+
+.live-preview-eyebrow {
+  margin: 0 0 7px;
+  color: #FF9142;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.live-preview-modal-header h2 {
+  margin: 0;
+  color: #F4F5F8;
+  font-size: 25px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+
+.live-preview-modal-header > div > p:last-child {
+  margin: 9px 0 0;
+  color: #7F889B;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.live-preview-close {
+  position: absolute;
+  top: 17px;
+  right: 17px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #2A3344;
+  border-radius: 8px;
+  background: #121721;
+  color: #9AA3B5;
+  cursor: pointer;
+}
+
+.live-preview-close:hover {
+  color: #fff;
+  border-color: #FF9142;
+}
+
+.live-preview-phone-stage {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-preview-phone {
+  width: 270px;
+  height: 546px;
+  transform-origin: center;
+}
+
+.live-preview-phone .notification-card {
+  min-height: 112px;
+}
+
+.live-preview-image {
+  width: 34px;
+  height: 34px;
+  margin-top: 22px;
+}
+
+@media (max-width: 720px) {
+  .live-preview-overlay {
+    padding: 12px;
+  }
+
+  .live-preview-modal {
+    width: min(430px, 100%);
+    height: min(720px, calc(100dvh - 24px));
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 8px;
+    padding: 24px 16px 18px;
+    overflow: hidden;
+  }
+
+  .live-preview-modal-header {
+    padding: 0 38px 0 6px;
+  }
+
+  .live-preview-modal-header h2 {
+    font-size: 20px;
+  }
+
+  .live-preview-modal-header > div > p:last-child {
+    margin-top: 5px;
+    font-size: 10px;
+  }
+
+  .live-preview-phone-stage {
+    min-height: 0;
+  }
+
+  .live-preview-phone {
+    width: min(230px, 55vw);
+    height: min(465px, 72dvh);
+    padding: 6px;
+    border-radius: 36px;
+  }
+
+  .live-preview-phone .phone-screen {
+    border-radius: 30px;
+  }
+
+  .live-preview-phone .notification-card {
+    top: 151px;
+  }
+}
+
+@media (max-width: 430px) {
+  .live-preview-trigger span {
+    display: none;
+  }
+
+  .live-preview-trigger {
+    width: 38px;
+    padding: 0;
+  }
+
+  .live-preview-modal {
+    border-radius: 16px;
+  }
+
+  .live-preview-phone {
+    width: 205px;
+    height: 415px;
   }
 }
