@@ -12,7 +12,7 @@ function getAuthKey() {
     throw new Error("NEXT_PUBLIC_EMAIL and NEXT_PUBLIC_PASSWORD must be configured.");
   }
 
-  return \`\${email}:\${password}\`;
+  return `${email}:${password}`;
 }
 
 function sign(value: string) {
@@ -20,8 +20,8 @@ function sign(value: string) {
 }
 
 export function createAuthToken() {
-  const payload = \`\${Date.now()}.\${crypto.randomUUID()}\`;
-  return \`\${payload}.\${sign(payload)}\`;
+  const payload = `${Date.now()}.${crypto.randomUUID()}`;
+  return `${payload}.${sign(payload)}`;
 }
 
 export function isValidAuthToken(token?: string | null) {
@@ -35,7 +35,7 @@ export function isValidAuthToken(token?: string | null) {
   const issuedAt = Number(timestamp);
   if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > COOKIE_MAX_AGE * 1000) return false;
 
-  const expected = sign(\`\${timestamp}.\${id}\`);
+  const expected = sign(`${timestamp}.${id}`);
   try {
     return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   } catch {
