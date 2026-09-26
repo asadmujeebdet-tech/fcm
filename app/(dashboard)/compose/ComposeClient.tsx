@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown, Minus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -18,6 +18,7 @@ export function ComposeClient() {
   const [appSearchOpen, setAppSearchOpen] = useState(false);
   const [appSearch, setAppSearch] = useState("");
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set());
+  const appPickerRef = useRef<HTMLDivElement>(null);
 
   const [notificationTitle, setNotificationTitle] = useState("");
   const [notificationBody, setNotificationBody] = useState("");
@@ -40,6 +41,17 @@ export function ComposeClient() {
         setLoadingApps(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!appSearchOpen) return;
+    function handleOutsideClick(event: MouseEvent) {
+      if (appPickerRef.current && !appPickerRef.current.contains(event.target as Node)) {
+        setAppSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [appSearchOpen]);
 
   useEffect(() => {
     if (!showLivePreview) return;
@@ -177,7 +189,7 @@ export function ComposeClient() {
                 <span className="target-apps-count">{selectedAppIds.size} selected</span>
               </div>
 
-              <div className="target-app-picker">
+              <div className="target-app-picker" ref={appPickerRef}>
                 <button
                   type="button"
                   className={`target-app-picker-trigger${appSearchOpen ? " is-open" : ""}`}
@@ -189,15 +201,8 @@ export function ComposeClient() {
                 </button>
 
                 {appSearchOpen && (
-                  <div className="target-app-picker-menu" onClick={(event) => event.stopPropagation()}>
+                  <div className="target-app-picker-menu">
                     <div className="target-app-picker-search">
-                      <Search size={14} />
-                      <input
-                        value={appSearch}
-                        onChange={(e) => setAppSearch(e.target.value)}
-                        placeholder="Search apps..."
-                        autoFocus
-                      />
                       <button
                         type="button"
                         className="target-app-select-all"
@@ -215,6 +220,13 @@ export function ComposeClient() {
                       >
                         <Minus size={14} />
                       </button>
+                      <Search size={14} />
+                      <input
+                        value={appSearch}
+                        onChange={(e) => setAppSearch(e.target.value)}
+                        placeholder="Search apps..."
+                        autoFocus
+                      />
                     </div>
 
                     <div className="target-app-picker-results">
