@@ -1,4 +1,3 @@
-import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 
 const AUTH_COOKIE = "fcm_auth";
@@ -15,17 +14,34 @@ function getAuthKey() {
   return `${email}:${password}`;
 }
 
-function sign(value: string) {
-  return createHmac("sha256", getAuthKey()).update(value).digest("hex");
+async function sign(value: string) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(getAuthKey()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(value)
+  );
+
+  return Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-export function createAuthToken() {
+export async function createAuthToken() {
   const payload = `${Date.now()}.${crypto.randomUUID()}`;
-  return `${payload}.${sign(payload)}`;
+  return `${payload}.${await sign(payload)}`;
 }
 
-export function isValidAuthToken(token?: string | null) {
+export async function isValidAuthToken(token?: string | null) {
   if (!token) return false;
+
   const parts = token.split(".");
   if (parts.length !== 3) return false;
 
@@ -33,20 +49,22 @@ export function isValidAuthToken(token?: string | null) {
   if (!timestamp || !id || !signature) return false;
 
   const issuedAt = Number(timestamp);
-  if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > COOKIE_MAX_AGE * 1000) return false;
-
-  const expected = sign(`${timestamp}.${id}`);
-  try {
-    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-  } catch {
+  if (
+    !Number.isFinite(issuedAt) ||
+    issuedAt > Date.now() ||
+    Date.now() - issuedAt > COOKIE_MAX_AGE * 1000
+  ) {
     return false;
   }
+
+  const expected = await sign(`${timestamp}.${id}`);
+  return signature === expected;
 }
 
-export function setAuthCookie() {
+export async function setAuthCookie() {
   cookies().set({
     name: AUTH_COOKIE,
-    value: createAuthToken(),
+    value: await createAuthToken(),
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
