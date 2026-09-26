@@ -1,22 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth";
+import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth-edge";
 
 const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const isPublic = PUBLIC_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`)
-  );
-
-  if (isPublic) return NextResponse.next();
+  if (PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) return NextResponse.next();
 
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   if (await isValidAuthToken(token)) return NextResponse.next();
 
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const loginUrl = new URL("/login", request.url);
   loginUrl.searchParams.set("next", pathname);
