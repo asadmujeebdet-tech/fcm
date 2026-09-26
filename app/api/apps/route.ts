@@ -12,6 +12,7 @@ const createAppSchema = z.object({
   packageName: z.string().optional(),
   appIconUrl: z.string().url().or(z.literal("")).optional(),
   serviceAccount: z.string().min(1),
+  isActive: z.boolean().default(true),
 });
 
 export async function GET() {
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
       package_name: parsed.data.packageName || null,
       app_icon_url: parsed.data.appIconUrl || null,
       default_topic: parsed.data.defaultTopic || "",
+      is_active: parsed.data.isActive,
       service_account_encrypted: ciphertext,
       encryption_iv: iv,
       encryption_tag: tag,
