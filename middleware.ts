@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+export const runtime = "nodejs";
+
 const PROTECTED_PREFIXES = ["/dashboard", "/apps", "/compose", "/history"];
 
 export async function middleware(request: NextRequest) {
