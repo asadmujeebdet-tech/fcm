@@ -378,7 +378,7 @@ export function ComposeClient() {
                         alt=""
                         className="whatsapp-icon live-preview-image"
                         onError={(event) => {
-                          event.currentTarget.style.display = "none";
+                          event.currentTarget.src = DEFAULT_PREVIEW_ICON;
                         }}
                       />
                     ) : (
