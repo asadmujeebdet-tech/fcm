@@ -1377,3 +1377,9 @@ body {
   background: rgba(77,124,254,.12);
   color: #A9C1FF;
 }
+
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
