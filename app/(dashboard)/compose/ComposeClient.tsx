@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Radio, Calendar, Save, Smartphone, Eye, X } from "lucide-react";
+import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Field";
@@ -15,6 +15,7 @@ export function ComposeClient() {
   const router = useRouter();
   const [apps, setApps] = useState<FirebaseAppPublic[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
+  const [appSearchOpen, setAppSearchOpen] = useState(false);
   const [appSearch, setAppSearch] = useState("");
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set());
 
@@ -26,7 +27,7 @@ export function ComposeClient() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleTimes, setScheduleTimes] = useState<string[]>([""]);
 
-  const [submitting, setSubmitting] = useState<"send_now" | "schedule" | "draft" | null>(null);
+  const [submitting, setSubmitting] = useState<"send_now" | "schedule" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -67,14 +68,6 @@ export function ComposeClient() {
     });
   }
 
-  function selectAll() {
-    setSelectedAppIds(new Set(filteredApps.map((a) => a.id)));
-  }
-
-  function deselectAll() {
-    setSelectedAppIds(new Set());
-  }
-
   const normalizedScheduleTimes = scheduleTimes
     .filter((time) => time && time.trim())
     .map((time) => time.trim());
@@ -85,7 +78,7 @@ export function ComposeClient() {
     notificationBody.trim() &&
     (!scheduleEnabled || normalizedScheduleTimes.length > 0);
 
-  async function handleSubmit(action: "send_now" | "schedule" | "draft") {
+  async function handleSubmit(action: "send_now" | "schedule") {
     setSubmitting(action);
     setError(null);
     setSuccessMessage(null);
@@ -121,9 +114,6 @@ export function ComposeClient() {
       setSuccessMessage(`Sent — ${m.total_sent} delivered, ${m.total_failed} failed.`);
     } else if (action === "schedule") {
       setSuccessMessage("Scheduled.");
-      router.push("/history");
-    } else {
-      setSuccessMessage("Saved as draft.");
       router.push("/history");
     }
   }
@@ -180,52 +170,60 @@ export function ComposeClient() {
                 <span className="target-apps-count">{selectedAppIds.size} selected</span>
               </div>
 
-              <div className="target-app-search">
-                <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink2" />
-                <Input
-                  value={appSearch}
-                  onChange={(e) => setAppSearch(e.target.value)}
-                  placeholder="Search apps..."
-                  className="pl-9"
-                />
-              </div>
-
-              <div className="target-apps-actions">
-                <button type="button" onClick={selectAll} className="target-app-action">
-                  Select All
+              <div className="target-app-picker">
+                <button
+                  type="button"
+                  className={`target-app-picker-trigger${appSearchOpen ? " is-open" : ""}`}
+                  onClick={() => setAppSearchOpen((open) => !open)}
+                  aria-expanded={appSearchOpen}
+                >
+                  <span>
+                    {selectedAppIds.size
+                      ? `${selectedAppIds.size} app${selectedAppIds.size === 1 ? "" : "s"} selected`
+                      : "Select apps"}
+                  </span>
+                  <ChevronDown size={15} />
                 </button>
-                <button type="button" onClick={deselectAll} className="target-app-action target-app-action-muted">
-                  Deselect All
-                </button>
-              </div>
 
-              <div className="target-apps-list">
-                {loadingApps ? (
-                  <p className="px-2 py-4 text-center text-xs text-ink2">Loading apps...</p>
-                ) : filteredApps.length === 0 ? (
-                  <p className="px-2 py-4 text-center text-xs text-ink2">No apps found.</p>
-                ) : (
-                  filteredApps.map((app) => (
-                    <label
-                      key={app.id}
-                      className="target-app-row"
-                    >
+                {appSearchOpen && (
+                  <div className="target-app-picker-menu">
+                    <div className="target-app-picker-search">
+                      <Search size={14} />
                       <input
-                        type="checkbox"
-                        checked={selectedAppIds.has(app.id)}
-                        onChange={() => toggleApp(app.id)}
-                        className="target-app-checkbox"
+                        value={appSearch}
+                        onChange={(e) => setAppSearch(e.target.value)}
+                        placeholder="Search apps..."
+                        autoFocus
                       />
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface2 text-ink2">
-                        {app.app_icon_url ? (
-                          <img src={app.app_icon_url} alt={app.name} className="h-full w-full object-cover" />
-                        ) : (
-                          <Smartphone size={13} />
-                        )}
-                      </div>
-                      <span className="min-w-0 flex-1 truncate">{app.name}</span>
-                    </label>
-                  ))
+                    </div>
+
+                    <div className="target-app-picker-results">
+                      {loadingApps ? (
+                        <p className="target-app-empty">Loading apps...</p>
+                      ) : filteredApps.length === 0 ? (
+                        <p className="target-app-empty">No apps found.</p>
+                      ) : (
+                        filteredApps.map((app) => (
+                          <label key={app.id} className="target-app-row">
+                            <input
+                              type="checkbox"
+                              checked={selectedAppIds.has(app.id)}
+                              onChange={() => toggleApp(app.id)}
+                              className="target-app-checkbox"
+                            />
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface2 text-ink2">
+                              {app.app_icon_url ? (
+                                <img src={app.app_icon_url} alt={app.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <Smartphone size={13} />
+                              )}
+                            </div>
+                            <span className="min-w-0 flex-1 truncate">{app.name}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             </Card>
@@ -292,14 +290,6 @@ export function ComposeClient() {
                 </Button>
               )}
 
-              <Button
-                variant="secondary"
-                className="w-full"
-                disabled={!canSubmit || submitting !== null}
-                onClick={() => handleSubmit("draft")}
-              >
-                <Save size={15} /> {submitting === "draft" ? "Saving..." : "Save as draft"}
-              </Button>
             </div>
 
             {error && <p className="text-xs text-danger">{error}</p>}
@@ -318,15 +308,6 @@ export function ComposeClient() {
           />
 
           <div className="live-preview-modal">
-            <button
-              type="button"
-              onClick={() => setShowLivePreview(false)}
-              className="live-preview-close"
-              aria-label="Close live preview"
-            >
-              <X size={18} />
-            </button>
-
             <div className="live-preview-phone-stage">
               <div className="phone live-preview-phone">
                 <div className="phone-screen">
