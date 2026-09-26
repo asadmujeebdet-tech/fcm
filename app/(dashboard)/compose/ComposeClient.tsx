@@ -313,17 +313,14 @@ export function ComposeClient() {
           />
 
           <div className="live-preview-modal">
-            <div className="live-preview-modal-header">
-              <div />
-              <button
-                type="button"
-                onClick={() => setShowLivePreview(false)}
-                className="live-preview-close"
-                aria-label="Close live preview"
-              >
-                <X size={18} />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowLivePreview(false)}
+              className="live-preview-close"
+              aria-label="Close live preview"
+            >
+              <X size={18} />
+            </button>
 
             <div className="live-preview-phone-stage">
               <div className="phone live-preview-phone">
