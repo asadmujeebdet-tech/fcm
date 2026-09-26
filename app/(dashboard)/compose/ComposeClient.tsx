@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown } from "lucide-react";
+import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown, Minus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Field";
@@ -65,6 +65,13 @@ export function ComposeClient() {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
+    });
+  }
+
+  function toggleAllApps() {
+    setSelectedAppIds((prev) => {
+      if (prev.size === apps.length && apps.length > 0) return new Set();
+      return new Set(apps.map((app) => app.id));
     });
   }
 
@@ -177,11 +184,7 @@ export function ComposeClient() {
                   onClick={() => setAppSearchOpen((open) => !open)}
                   aria-expanded={appSearchOpen}
                 >
-                  <span>
-                    {selectedAppIds.size
-                      ? `${selectedAppIds.size} app${selectedAppIds.size === 1 ? "" : "s"} selected`
-                      : "Select apps"}
-                  </span>
+                  <span>Select App</span>
                   <ChevronDown size={15} />
                 </button>
 
@@ -195,6 +198,23 @@ export function ComposeClient() {
                         placeholder="Search apps..."
                         autoFocus
                       />
+                      <button
+                        type="button"
+                        className="target-app-select-all"
+                        onClick={toggleAllApps}
+                        aria-label={
+                          selectedAppIds.size === apps.length && apps.length > 0
+                            ? "Deselect all apps"
+                            : "Select all apps"
+                        }
+                        title={
+                          selectedAppIds.size === apps.length && apps.length > 0
+                            ? "Deselect all apps"
+                            : "Select all apps"
+                        }
+                      >
+                        <Minus size={14} />
+                      </button>
                     </div>
 
                     <div className="target-app-picker-results">
