@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { setAuthCookie } from "@/lib/auth";
+import { createAuthToken } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -18,8 +18,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    await setAuthCookie();
-    return NextResponse.json({ success: true });
+    const token = await createAuthToken();
+    const response = NextResponse.json({ success: true });
+
+    response.cookies.set({
+      name: "fcm_auth",
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    return response;
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
