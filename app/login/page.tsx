@@ -47,8 +47,7 @@ function LoginForm({ defaultEmail, defaultPassword }: { defaultEmail: string; de
         return;
       }
 
-      router.push(searchParams.get("next") || "/dashboard");
-      router.refresh();
+      window.location.assign(searchParams.get("next") || "/dashboard");
     } catch {
       setError("Unable to sign in. Please try again.");
       setLoading(false);
