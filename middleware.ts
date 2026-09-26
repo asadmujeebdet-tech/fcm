@@ -1,53 +1,28 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/apps", "/compose", "/history"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request: { headers: request.headers } });
+  const pathname = request.nextUrl.pathname;
+  const isPublic = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(\`\${path}/\`));
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request: { headers: request.headers } });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+  if (isPublic) return NextResponse.next();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const token = request.cookies.get(AUTH_COOKIE)?.value;
+  if (isValidAuthToken(token)) return NextResponse.next();
 
-  const isProtected = PROTECTED_PREFIXES.some((p) => request.nextUrl.pathname.startsWith(p));
-
-  if (isProtected && !user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if ((request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup") && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
-  return response;
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("next", pathname);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
