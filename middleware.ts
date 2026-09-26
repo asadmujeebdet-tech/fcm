@@ -1,8 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth";
 
-export const runtime = "nodejs";
-
 const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
 export async function middleware(request: NextRequest) {
@@ -14,7 +12,7 @@ export async function middleware(request: NextRequest) {
   if (isPublic) return NextResponse.next();
 
   const token = request.cookies.get(AUTH_COOKIE)?.value;
-  if (isValidAuthToken(token)) return NextResponse.next();
+  if (await isValidAuthToken(token)) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
