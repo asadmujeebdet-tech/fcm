@@ -1301,10 +1301,47 @@ body {
 .live-preview-phone .phone-screen::after { opacity: .22; }
 .live-preview-phone .notification-card {
   top: 178px;
+  min-height: 92px;
+  padding-top: 11px;
+  padding-bottom: 10px;
   background: rgba(245,248,252,.92);
   box-shadow: 0 9px 22px rgba(0,0,0,.20);
 }
+
+.live-preview-image {
+  width: 34px;
+  height: 34px;
+  margin-top: 18px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: rgba(63,125,255,.12);
+}
+
+.live-preview-image-placeholder {
+  width: 34px;
+  height: 34px;
+  margin-top: 18px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #EAF2FF, #C9D8F4);
+  color: #4D7CFE;
+}
 @media (max-width: 430px) {
+  .live-preview-phone .notification-card {
+    min-height: 78px;
+    padding-top: 9px;
+    padding-bottom: 8px;
+  }
+
+  .live-preview-image,
+  .live-preview-image-placeholder {
+    width: 28px;
+    height: 28px;
+    margin-top: 14px;
+  }
+
   .live-preview-modal {
     width: min(320px, 100%);
     height: min(550px, calc(100dvh - 20px));
@@ -1316,13 +1353,13 @@ body {
 
 .target-app-picker-search {
   position: relative;
-  padding-right: 42px;
+  padding-left: 42px;
 }
 
 .target-app-select-all {
   position: absolute;
   top: 50%;
-  right: 7px;
+  left: 7px;
   width: 28px;
   height: 28px;
   display: grid;
