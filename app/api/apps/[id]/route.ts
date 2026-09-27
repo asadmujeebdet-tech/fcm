@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentUserId } from "@/lib/current-user";
 
 export const runtime = "nodejs";
 
@@ -14,11 +14,8 @@ const updateAppSchema = z.object({
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const parsed = updateAppSchema.safeParse(body);
@@ -38,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     .from("firebase_apps")
     .update(update)
     .eq("id", params.id)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .select("id, user_id, name, project_id, package_name, app_icon_url, default_topic, is_active, created_at, updated_at")
     .single();
 
@@ -47,18 +44,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
   const { error } = await admin
     .from("firebase_apps")
     .delete()
     .eq("id", params.id)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
