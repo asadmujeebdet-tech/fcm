@@ -4,10 +4,10 @@ export const AUTH_COOKIE = "fcm_session";
 export const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 function getSecret() {
-  const email = process.env.NEXT_PUBLIC_EMAIL;
-  const password = process.env.NEXT_PUBLIC_PASSWORD;
+  const email = process.env.EMAIL;
+  const password = process.env.PASSWORD;
   if (!email || !password) {
-    throw new Error("NEXT_PUBLIC_EMAIL and NEXT_PUBLIC_PASSWORD must be configured.");
+    throw new Error("EMAIL and PASSWORD must be configured.");
   }
   return new TextEncoder().encode(`${email}:${password}`);
 }
