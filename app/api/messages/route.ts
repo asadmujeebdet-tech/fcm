@@ -17,7 +17,7 @@ const baseSchema = z.object({
 
 export async function GET(){
   try{
-    const r=await query(\`
+    const r=await query(`
       SELECT m.*,
         COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
           'id',fa.id,'name',fa.name,'app_icon_url',fa.app_icon_url
@@ -27,7 +27,7 @@ export async function GET(){
       LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
       GROUP BY m.id
       ORDER BY m.created_at DESC
-    \`);
+    `);
     return NextResponse.json({messages:r.rows});
   }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
@@ -44,25 +44,25 @@ export async function POST(req:NextRequest){
   const scheduleTimes=Array.isArray(input.scheduledAt)?input.scheduledAt:input.scheduledAt?[input.scheduledAt]:[];
   if(input.action==="schedule"&&!scheduleTimes.length)return NextResponse.json({error:"At least one scheduledAt value is required to schedule a message"},{status:400});
   try{
-    const owned=await query<{id:string}>(\`SELECT id FROM public.firebase_apps WHERE user_id=$1 AND id=ANY($2::uuid[])\`,[userId,input.appIds]);
+    const owned=await query<{id:string}>(`SELECT id FROM public.firebase_apps WHERE user_id=$1 AND id=ANY($2::uuid[])`,[userId,input.appIds]);
     const ownedIds=new Set(owned.rows.map(a=>a.id)); const validAppIds=input.appIds.filter(id=>ownedIds.has(id));
     if(!validAppIds.length)return NextResponse.json({error:"None of the selected apps are valid"},{status:400});
     const createMessage=async(status:"draft"|"scheduled",scheduledAt:string|null)=>{
-      const r=await query<Message>(\`INSERT INTO public.messages
+      const r=await query<Message>(`INSERT INTO public.messages
         (user_id,format,topic,notification_title,notification_body,notification_image,data_app_url,data_title,data_short_desc,data_long_desc,data_icon,data_feature,status,scheduled_at,total_apps_targeted)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *\`,[
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,[
           userId,input.format,input.topic||"",input.notificationTitle||null,input.notificationBody||null,input.notificationImage||null,
           input.dataAppUrl||null,input.dataTitle||null,input.dataShortDesc||null,input.dataLongDesc||null,input.dataIcon||null,input.dataFeature||null,
           status,scheduledAt,validAppIds.length]);
       const message=r.rows[0]; if(!message)throw new Error("Failed to create message");
-      await query(\`INSERT INTO public.message_targets(message_id,app_id) SELECT $1,unnest($2::uuid[])\`,[message.id,validAppIds]);
+      await query(`INSERT INTO public.message_targets(message_id,app_id) SELECT $1,unnest($2::uuid[])`,[message.id,validAppIds]);
       return message;
     };
     if(input.action==="send_now"){
       const message=await createMessage("draft",null); await dispatchMessage(message);
       const final=await query<Message>("SELECT * FROM public.messages WHERE id=$1",[message.id]);
-      const targets=await query(\`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,fa.name AS app_name,fa.app_icon_url
-        FROM public.message_targets mt LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id WHERE mt.message_id=$1 ORDER BY mt.created_at ASC\`,[message.id]);
+      const targets=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,fa.name AS app_name,fa.app_icon_url
+        FROM public.message_targets mt LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id WHERE mt.message_id=$1 ORDER BY mt.created_at ASC`,[message.id]);
       return NextResponse.json({message:final.rows[0]??message,targets:targets.rows},{status:201});
     }
     const insertedMessages:Message[]=[]; for(const scheduledIso of scheduleTimes)insertedMessages.push(await createMessage("scheduled",scheduledIso));
