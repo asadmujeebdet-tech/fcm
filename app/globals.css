@@ -431,10 +431,14 @@ body {
 .notification-body {
   display: grid;
   gap: 7px;
+  min-width: 0;
+  max-width: 100%;
   color: #172c50;
   font-size: 9.5px;
   line-height: 1.25;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .whatsapp-icon-wrap {
