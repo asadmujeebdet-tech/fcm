@@ -1,4 +1,4 @@
-import { SignJWT } from "jose";
+import { jwtVerify, SignJWT } from "jose";
 
 export const AUTH_COOKIE = "fcm_session";
 export const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -18,6 +18,17 @@ export async function createAuthToken() {
     .setIssuedAt()
     .setExpirationTime("7d")
     .sign(getSecret());
+}
+
+export async function isValidAuthToken(token?: string | null) {
+  if (!token) return false;
+
+  try {
+    const { payload } = await jwtVerify(token, getSecret(), { algorithms: ["HS256"] });
+    return payload.session === "fcm";
+  } catch {
+    return false;
+  }
 }
 
 export async function setAuthCookie() {
