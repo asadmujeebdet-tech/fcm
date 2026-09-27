@@ -281,7 +281,7 @@ Deno.serve(async (request) => {
     return Response.json({ error: "Method not allowed." }, { status: 405 });
   }
 
-  const expectedSecret = env("FCM_CRON_SECRET");
+  const expectedSecret = env("CRON_SECRET");
   const authorization = request.headers.get("authorization") ?? "";
 
   if (authorization !== `Bearer ${expectedSecret}`) {
