@@ -3,8 +3,8 @@ import { jwtVerify } from "jose";
 export const AUTH_COOKIE = "fcm_session";
 
 function getSecret() {
-  const email = process.env.NEXT_PUBLIC_EMAIL;
-  const password = process.env.NEXT_PUBLIC_PASSWORD;
+  const email = process.env.EMAIL;
+  const password = process.env.PASSWORD;
   if (!email || !password) return null;
   return new TextEncoder().encode(`${email}:${password}`);
 }
