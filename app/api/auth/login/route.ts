@@ -7,8 +7,8 @@ export async function POST(request: Request) {
     const email = typeof body?.email === "string" ? body.email.trim() : "";
     const password = typeof body?.password === "string" ? body.password : "";
 
-    const expectedEmail = process.env.NEXT_PUBLIC_EMAIL ?? "";
-    const expectedPassword = process.env.NEXT_PUBLIC_PASSWORD ?? "";
+    const expectedEmail = process.env.EMAIL ?? "";
+    const expectedPassword = process.env.PASSWORD ?? "";
 
     if (!expectedEmail || !expectedPassword) {
       return NextResponse.json({ error: "Login is not configured." }, { status: 500 });
@@ -31,7 +31,6 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    // Remove any cookie created by the previous auth implementation.
     response.cookies.set({
       name: "fcm_auth",
       value: "",
