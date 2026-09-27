@@ -11,7 +11,7 @@ create extension if not exists "pgcrypto";
 -- ----------------------------------------------------------------------------
 create table if not exists firebase_apps (
   id                        uuid primary key default gen_random_uuid(),
-  user_id                   uuid not null references auth.users(id) on delete cascade,
+  -- Custom app login is used; user_id is an internal owner UUID, not Supabase Auth.
   name                      text not null,
   project_id                text not null,
   package_name              text,
@@ -32,7 +32,7 @@ create index if not exists firebase_apps_user_id_idx on firebase_apps(user_id);
 -- ----------------------------------------------------------------------------
 create table if not exists messages (
   id                    uuid primary key default gen_random_uuid(),
-  user_id               uuid not null references auth.users(id) on delete cascade,
+  -- Custom app login is used; user_id is an internal owner UUID, not Supabase Auth.
   format                text not null check (format in ('notification', 'data')),
   topic                 text not null default '',
 
