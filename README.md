@@ -1,102 +1,343 @@
 # FCM Broadcast
 
-A lightweight Firebase Cloud Messaging dashboard for managing multiple apps,
-setting up per-app topics, composing notification campaigns, and tracking
-send results from one place.
+A lightweight Firebase Cloud Messaging dashboard for managing multiple apps, composing notifications, sending immediately, and scheduling FCM sends through Supabase Cron + Edge Functions.
 
-Built with Next.js 14, TypeScript, Supabase, and Firebase Admin.
+Built with Next.js 14, TypeScript, Supabase/Postgres, Firebase Admin for immediate sends, and the Firebase Cloud Messaging HTTP v1 API inside the scheduled Edge Function.
 
 ## Features
 
-- Supabase email/password authentication with protected dashboard routes
-- App management with encrypted Firebase service account storage
-- Notification-only composer for title, message, and image URL
-- Multi-app targeting and optional scheduled sends
-- Delivery tracking and history view
-- Responsive layout for desktop and mobile use
+- Password-based dashboard login
+- Firebase app management with encrypted service-account storage
+- Multi-app notification composer
+- Dynamic mobile Live Preview
+- Send now
+- Scheduled FCM sends
+- Scheduled delivery status written back to Supabase
+- History with per-app delivery results
+- Supabase `pg_cron` + `pg_net` scheduler
+- Supabase Edge Function processor
+- Atomic job claiming to prevent duplicate scheduled sends
+
+## Scheduling architecture
+
+Scheduled messages do **not** depend on the browser, Vercel, Render, Bree.js, Redis, or an in-process timer.
+
+```
+/compose
+   |
+   | POST /api/messages (action=schedule)
+   v
+Supabase PostgreSQL
+messages.status = scheduled
+messages.scheduled_at = requested time
+   |
+   | pg_cron every minute
+   v
+pg_net
+   |
+   | POST
+   v
+Supabase Edge Function
+process-scheduled-fcm
+   |
+   | claim_scheduled_messages()
+   | status -> sending
+   v
+Firebase Cloud Messaging HTTP v1
+   |
+   +--> target sent
+   +--> target failed
+   |
+   v
+messages.status = sent / partial_failure / failed
+```
+
+Supabase documents using `pg_cron` with `pg_net` to invoke Edge Functions on a recurring schedule, including an every-minute schedule. See the official documentation: https://supabase.com/docs/guides/functions/schedule-functions
+
+The scheduler uses an atomic Postgres claim function with `FOR UPDATE SKIP LOCKED`, so overlapping cron invocations cannot claim the same scheduled message. Jobs stuck in `sending` for more than 10 minutes are returned to `scheduled` automatically.
 
 ## Project structure
 
-```bash
-fcm-saas/
+```
+fcm/
 ├── app/
 │   ├── (dashboard)/
-│   │   ├── dashboard/
 │   │   ├── apps/
 │   │   ├── compose/
+│   │   ├── dashboard/
 │   │   └── history/
 │   ├── api/
 │   │   ├── apps/
 │   │   ├── cron/
 │   │   └── messages/
 │   ├── login/
-│   ├── signup/
-│   ├── globals.css
-│   ├── layout.tsx
 │   └── page.tsx
 ├── components/
 ├── lib/
 ├── supabase/
+│   ├── functions/
+│   │   ├── .env.example
+│   │   └── process-scheduled-fcm/
+│   │       └── index.ts
+│   ├── migrations/
+│   │   └── 20260927_fcm_scheduler.sql
+│   ├── config.toml
+│   ├── cron-setup.sql
+│   └── schema.sql
 ├── types/
 ├── middleware.ts
-├── next.config.js
-├── package.json
-├── tsconfig.json
 ├── vercel.json
-├── .gitignore
-├── README.md
-└── .env.local
+└── README.md
 ```
 
-## 1. Setup the database
+## 1. Database setup
 
-1. Create a Supabase project.
-2. Open the SQL editor and run the contents of `supabase/schema.sql`.
-3. Make sure your auth provider includes email/password login.
+The existing database schema is in:
 
-## 2. Local environment variables
+```
+supabase/schema.sql
+```
 
-Create a `.env.local` file in the project root with values like:
+Run it in Supabase SQL Editor if the project has not been initialized yet.
+
+Then run:
+
+```
+supabase/migrations/20260927_fcm_scheduler.sql
+```
+
+This migration:
+
+- enables `pg_cron`
+- enables `pg_net`
+- creates `claim_scheduled_messages()`
+- adds atomic scheduled-message claiming
+- recovers stale `sending` jobs after 10 minutes
+
+## 2. Required Vercel / Next.js environment variables
+
+Keep the existing application variables:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_EMAIL=admin@example.com
-NEXT_PUBLIC_PASSWORD=super-secret-password
-ENCRYPTION_SECRET_KEY=64-char-hex-string
-CRON_SECRET=long-random-string
+NEXT_PUBLIC_PASSWORD=your-login-password
+
+DATABASE_URL=your-supabase-postgres-connection-string
+
+ENCRYPTION_SECRET_KEY=64-character-hex-string
 ```
 
-Generate `ENCRYPTION_SECRET_KEY` and `CRON_SECRET` with:
+Generate the encryption key with:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-> The `NEXT_PUBLIC_EMAIL` and `NEXT_PUBLIC_PASSWORD` values are used only as default login fields on the sign-in page. The actual user still has to exist in your Supabase authentication table.
+Do **not** put Firebase service-account JSON into Vercel environment variables. The existing app encrypts the service-account JSON before storing it in the database.
 
-## 3. Install and start locally
+## 3. Supabase Edge Function secrets
 
-```bash
-npm install
-npm run dev
+The scheduled processor runs inside Supabase, so these values must also exist as **Supabase Edge Function secrets**.
+
+Set:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY
+ENCRYPTION_SECRET_KEY
+FCM_CRON_SECRET
 ```
 
-Then open:
+### SUPABASE_SERVICE_ROLE_KEY
+
+Use the Supabase server-side service-role key for the Edge Function only.
+
+Do not put this key in browser/client code or GitHub.
+
+### ENCRYPTION_SECRET_KEY
+
+This must be the **same 64-character hex value used by the Next.js application**.
+
+The Edge Function needs the same key because it decrypts the Firebase service-account JSON stored by the existing app.
+
+### FCM_CRON_SECRET
+
+Generate a separate random secret:
 
 ```bash
-http://localhost:3000
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Production build:
+Example:
+
+```text
+FCM_CRON_SECRET=replace-with-your-generated-secret
+```
+
+Never commit the real value.
+
+Supabase Edge Function secrets can be configured from the Dashboard or with the Supabase CLI. See: https://supabase.com/docs/guides/functions/secrets
+
+## 4. Deploy the Edge Function
+
+Install/login to the Supabase CLI and link the repository to your Supabase project.
+
+Then:
 
 ```bash
-npm run build
-npm run start
+supabase functions deploy process-scheduled-fcm --project-ref YOUR_PROJECT_REF
 ```
 
-## 4. Deploy to Vercel
+Set the production secrets:
+
+```bash
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY="YOUR_SERVICE_ROLE_KEY"
+supabase secrets set ENCRYPTION_SECRET_KEY="YOUR_64_CHAR_HEX_KEY"
+supabase secrets set FCM_CRON_SECRET="YOUR_CRON_SECRET"
+```
+
+You can verify the configured secret names with:
+
+```bash
+supabase secrets list
+```
+
+The values themselves should never be committed to this repository.
+
+## 5. Configure Supabase Cron
+
+Before running `supabase/cron-setup.sql`, replace:
+
+```text
+YOUR_PROJECT_REF
+REPLACE_WITH_YOUR_FCM_CRON_SECRET
+```
+
+with your real values.
+
+The script stores the project URL and cron secret in Supabase Vault and creates:
+
+```text
+process-scheduled-fcm
+```
+
+with:
+
+```text
+* * * * *
+```
+
+That means Supabase Cron invokes the Edge Function every minute.
+
+Run the completed SQL in:
+
+**Supabase Dashboard → SQL Editor**
+
+File:
+
+```text
+supabase/cron-setup.sql
+```
+
+Supabase recommends Vault for credentials used by scheduled Edge Function calls: https://supabase.com/docs/guides/functions/schedule-functions
+
+## 6. Important: Firebase Cloud Messaging API
+
+The scheduled Edge Function sends through the Firebase Cloud Messaging HTTP v1 API.
+
+Each Firebase app already has an encrypted service-account JSON stored in `firebase_apps`.
+
+The service account must have permission to send FCM messages, and the Firebase Cloud Messaging API must be enabled for the target Firebase project.
+
+Firebase's HTTP v1 API uses a short-lived OAuth 2.0 access token derived from the service account and sends to:
+
+```text
+POST https://fcm.googleapis.com/v1/projects/PROJECT_ID/messages:send
+```
+
+See the official Firebase documentation:
+
+https://firebase.google.com/docs/cloud-messaging/send/v1-api
+
+## 7. How scheduling works
+
+When the user clicks **Schedule** in `/compose`:
+
+```text
+POST /api/messages
+action = schedule
+scheduledAt = selected ISO timestamp(s)
+```
+
+The Next.js API creates the message and target rows:
+
+```text
+messages.status = scheduled
+message_targets.status = pending
+```
+
+The browser can then close. No timer remains in the browser.
+
+Every minute:
+
+```text
+pg_cron
+  -> pg_net
+  -> process-scheduled-fcm
+  -> claim due messages
+  -> Firebase FCM
+  -> update target status
+  -> update message status
+```
+
+A successful message becomes:
+
+```text
+sent
+```
+
+Mixed target results become:
+
+```text
+partial_failure
+```
+
+If every target fails:
+
+```text
+failed
+```
+
+Individual target rows contain:
+
+```text
+pending
+sent
+failed
+```
+
+with the FCM message ID or error message where available.
+
+## 8. Timezone
+
+The database stores scheduled timestamps as `timestamptz`.
+
+The browser converts the selected `datetime-local` value to an ISO timestamp before sending it to the API.
+
+For example, Pakistan time (UTC+05:00):
+
+```text
+2026-09-27T20:30:00+05:00
+```
+
+The database compares the timestamp using its absolute instant, so the cron does not need to know the user's local timezone.
+
+## 9. Vercel
+
+Vercel is only responsible for the Next.js web application.
+
+The old Vercel cron is no longer used for scheduled FCM processing. Scheduling is owned by Supabase Cron.
+
+Deploy normally:
 
 ```bash
 npm install
@@ -104,41 +345,82 @@ npm run build
 npx vercel
 ```
 
-Add the same environment variables to your Vercel project settings, then redeploy.
+Add the normal Next.js environment variables to Vercel.
 
-## 5. Deploy to Render
+Do not add the Supabase Edge Function's service-role key to browser-exposed variables.
 
-1. Create a new Web Service from this repository.
-2. Use the build command:
+## 10. Render
 
-```bash
-npm install && npm run build
-```
+Render can still host the same Next.js application if needed. It is not responsible for scheduled FCM processing.
 
-3. Use the start command:
+The Supabase Cron + Edge Function pipeline works independently of whether the web application is currently running.
 
-```bash
-npx next start -p $PORT
-```
-
-4. Add the same environment variables from `.env.local` in Render's environment section.
-
-## 6. Scheduling
-
-Scheduled messages are processed by `/api/cron/process-scheduled`. If you host on Vercel, the cron job in `vercel.json` will call the route automatically. For other hosts or self-hosting, trigger it with a scheduler using a matching `Authorization: Bearer <CRON_SECRET>` header.
-
-Example:
+## 11. Local development
 
 ```bash
-curl -H "Authorization: Bearer <CRON_SECRET>" \
-  http://localhost:3000/api/cron/process-scheduled
+npm install
+npm run dev
 ```
 
-## Security notes
+For Edge Function local development, copy:
 
-- Firebase service account JSON is encrypted before it is stored.
-- All app and message requests are protected by Supabase auth and row-level security.
-- Keep the service role key server-side only.
+```text
+supabase/functions/.env.example
+```
+
+to:
+
+```text
+supabase/functions/.env
+```
+
+and fill in real values.
+
+Never commit:
+
+```text
+.env
+.env.local
+supabase/functions/.env
+```
+
+## 12. Test the scheduler
+
+First create a notification from `/compose` scheduled for a time a few minutes in the future.
+
+Then check:
+
+**Supabase Dashboard → Cron → process-scheduled-fcm**
+
+You should see a successful cron execution.
+
+Then check:
+
+**Supabase Dashboard → Table Editor → messages**
+
+The message should progress:
+
+```text
+scheduled
+  -> sending
+  -> sent / partial_failure / failed
+```
+
+Open the message in the FCM dashboard History page to see per-app target results.
+
+For debugging, also check:
+
+**Supabase Dashboard → Edge Functions → process-scheduled-fcm → Logs**
+
+## 13. Security
+
+- Never commit Firebase service-account JSON.
+- Never commit `SUPABASE_SERVICE_ROLE_KEY`.
+- Never commit `FCM_CRON_SECRET`.
+- Never commit `ENCRYPTION_SECRET_KEY`.
+- The scheduled Edge Function is not public; it requires the private cron secret.
+- The Edge Function uses the server-side Supabase service-role key to process jobs and bypass RLS.
+- Cron credentials are stored in Supabase Vault rather than source control.
 
 ## Useful commands
 
@@ -146,5 +428,7 @@ curl -H "Authorization: Bearer <CRON_SECRET>" \
 npm run dev
 npm run build
 npm run start
-npm run lint
+
+supabase functions deploy process-scheduled-fcm --project-ref YOUR_PROJECT_REF
+supabase secrets list
 ```
