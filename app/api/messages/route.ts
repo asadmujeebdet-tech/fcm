@@ -46,7 +46,10 @@ export async function POST(req:NextRequest){
    const message=await createMessage("draft",null);
    await dispatchMessage(message);
    const final=await query<Message>("SELECT * FROM public.messages WHERE id=$1",[message.id]);
-   return NextResponse.json({message:final.rows[0]??message},{status:201});
+   const targets=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,fa.name AS app_name
+    FROM public.message_targets mt LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
+    WHERE mt.message_id=$1 ORDER BY mt.created_at ASC`,[message.id]);
+   return NextResponse.json({message:final.rows[0]??message,targets:targets.rows},{status:201});
   }
   const insertedMessages:Message[]=[];
   for(const scheduledIso of scheduleTimes)insertedMessages.push(await createMessage("scheduled",scheduledIso));
