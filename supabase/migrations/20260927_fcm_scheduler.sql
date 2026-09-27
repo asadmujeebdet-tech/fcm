@@ -43,3 +43,13 @@ revoke all on function public.claim_scheduled_messages(integer) from public;
 revoke all on function public.claim_scheduled_messages(integer) from anon;
 revoke all on function public.claim_scheduled_messages(integer) from authenticated;
 grant execute on function public.claim_scheduled_messages(integer) to service_role;
+
+
+-- The application uses its own EMAIL/PASSWORD login rather than Supabase Auth.
+-- Remove legacy auth.users foreign keys so internally generated owner UUIDs can
+-- be stored without requiring a matching row in auth.users.
+alter table if exists public.firebase_apps
+  drop constraint if exists firebase_apps_user_id_fkey;
+
+alter table if exists public.messages
+  drop constraint if exists messages_user_id_fkey;
