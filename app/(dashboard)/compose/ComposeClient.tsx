@@ -130,7 +130,15 @@ export function ComposeClient() {
 
     if (action === "send_now") {
       const m = data.message;
-      setSuccessMessage(`Sent — ${m.total_sent} delivered, ${m.total_failed} failed.`);
+      const failedTargets = (data.targets ?? []).filter((target: { status?: string; error_message?: string | null }) => target.status === "failed");
+      const failedDetails = failedTargets
+        .map((target: { app_name?: string | null; error_message?: string | null }) => `${target.app_name || "Target app"}: ${target.error_message || "Unknown FCM error"}`)
+        .join(" | ");
+      if (m.total_failed > 0) {
+        setSuccessMessage(`Sent — ${m.total_sent} delivered, ${m.total_failed} failed.${failedDetails ? ` Error: ${failedDetails}` : ""}`);
+      } else {
+        setSuccessMessage(`Sent — ${m.total_sent} delivered, ${m.total_failed} failed.`);
+      }
     } else if (action === "schedule") {
       setSuccessMessage("Scheduled.");
       router.push("/history");
