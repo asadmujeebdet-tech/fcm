@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentUserId } from "@/lib/current-user";
 import { encrypt } from "@/lib/encryption";
 
 export const runtime = "nodejs";
@@ -16,11 +16,8 @@ const createAppSchema = z.object({
 });
 
 export async function GET() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -28,7 +25,7 @@ export async function GET() {
     .select(
       "id, user_id, name, project_id, package_name, app_icon_url, default_topic, is_active, created_at, updated_at"
     )
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -36,11 +33,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const parsed = createAppSchema.safeParse(body);
@@ -69,7 +63,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await admin
     .from("firebase_apps")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       name: parsed.data.name,
       project_id: projectId,
       package_name: parsed.data.packageName || null,
