@@ -26,23 +26,54 @@ export function HistoryClient(){
  const [selected,setSelected]=useState<Message|null>(null);
  const [targets,setTargets]=useState<TargetRow[]>([]);
  const [loadingTargets,setLoadingTargets]=useState(false);
- async function loadMessages(){setLoading(true);const res=await fetch("/api/messages");const data=await res.json();setMessages(data.messages??[]);setLoading(false);}
+
+ async function openDetail(message:Message){
+   setSelected(message);
+   setLoadingTargets(true);
+   const res=await fetch(`/api/messages/${message.id}`);
+   const data=await res.json();
+   setSelected(data.message??message);
+   setTargets(data.targets??[]);
+   setLoadingTargets(false);
+ }
+
+ async function loadMessages(){
+   setLoading(true);
+   const res=await fetch("/api/messages");
+   const data=await res.json();
+   const nextMessages=data.messages??[];
+   setMessages(nextMessages);
+   setLoading(false);
+   if(nextMessages.length>0) await openDetail(nextMessages[0]);
+   else setSelected(null);
+ }
+
  useEffect(()=>{loadMessages();},[]);
- async function openDetail(message:Message){setSelected(message);setLoadingTargets(true);const res=await fetch(`/api/messages/${message.id}`);const data=await res.json();setSelected(data.message??message);setTargets(data.targets??[]);setLoadingTargets(false);}
- async function cancelMessage(message:Message){if(!confirm("Cancel this scheduled message?"))return;await fetch(`/api/messages/${message.id}`,{method:"DELETE"});loadMessages();setSelected(null);}
+
+ async function cancelMessage(message:Message){
+   if(!confirm("Cancel this scheduled message?"))return;
+   await fetch(`/api/messages/${message.id}`,{method:"DELETE"});
+   loadMessages();
+   setSelected(null);
+ }
+
  const title=selected?.format==="notification"?selected.notification_title??"":selected?.data_title??"";
  const body=selected?.format==="notification"?selected.notification_body??"":selected?.data_short_desc??"";
+
  return <div className="space-y-6">
    <div><h1 className="text-xl font-semibold text-white">History</h1><p className="mt-1 text-sm text-ink2">Every broadcast — sent, scheduled, or drafted.</p></div>
    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
     <div className="min-w-0">
-     {!loading&&messages.length===0?<EmptyState title="Nothing sent yet" description="Your broadcast history will show up here once you send or schedule a message."/>:<Card className="overflow-hidden"><div className="w-full"><table className="w-full table-fixed text-left text-sm"><thead><tr className="border-b border-border text-xs text-ink2"><th className="w-[30%] px-3 py-3 font-normal sm:px-5">Message</th><th className="w-[14%] px-3 py-3 font-normal sm:px-5">Apps</th><th className="w-[17%] px-3 py-3 font-normal sm:px-5">Delivered / Failed</th><th className="w-[15%] px-3 py-3 font-normal sm:px-5">Status</th><th className="w-[24%] px-3 py-3 font-normal sm:px-5">When</th></tr></thead><tbody>{messages.map(m=><tr key={m.id} onClick={()=>openDetail(m)} className="cursor-pointer border-b border-border last:border-0 hover:bg-surface2/50"><td className="truncate px-3 py-3 font-medium text-white sm:px-5">{m.format==="notification"?m.notification_title:m.data_title}</td><td className="px-3 py-3 sm:px-5"><AppPills apps={m.apps} fallback={m.total_apps_targeted}/></td><td className="px-3 py-3 font-mono text-[10px] text-ink2 sm:px-5 sm:text-xs">{m.total_sent} / {m.total_failed}</td><td className="px-3 py-3 sm:px-5"><StatusBadge status={m.status}/></td><td className="px-3 py-3 text-[10px] leading-4 text-ink2 sm:px-5 sm:text-xs">{format(new Date(m.scheduled_at??m.sent_at??m.created_at),"MMM d, yyyy • HH:mm")}</td></tr>)}</tbody></table></div></Card>}
+     {!loading&&messages.length===0?<EmptyState title="Nothing sent yet" description="Your broadcast history will show up here once you send or schedule a message."/>:<Card className="overflow-hidden"><div className="w-full"><table className="w-full table-fixed text-left text-sm"><thead><tr className="border-b border-border text-xs text-ink2"><th className="w-[30%] px-3 py-3 font-normal sm:px-5">Message</th><th className="w-[14%] px-3 py-3 font-normal sm:px-5">Apps</th><th className="w-[17%] px-3 py-3 font-normal sm:px-5">Delivered / Failed</th><th className="w-[15%] px-3 py-3 font-normal sm:px-5">Status</th><th className="w-[24%] px-3 py-3 font-normal sm:px-5">When</th></tr></thead><tbody>{messages.map(m=><tr key={m.id} onClick={()=>openDetail(m)} className={`cursor-pointer border-b border-border last:border-0 hover:bg-surface2/50 ${selected?.id===m.id?"bg-surface2/40":""}`}><td className="truncate px-3 py-3 font-medium text-white sm:px-5">{m.format==="notification"?m.notification_title:m.data_title}</td><td className="px-3 py-3 sm:px-5"><AppPills apps={m.apps} fallback={m.total_apps_targeted}/></td><td className="px-3 py-3 font-mono text-[10px] text-ink2 sm:px-5 sm:text-xs">{m.total_sent} / {m.total_failed}</td><td className="px-3 py-3 sm:px-5"><StatusBadge status={m.status}/></td><td className="px-3 py-3 text-[10px] leading-4 text-ink2 sm:px-5 sm:text-xs">{format(new Date(m.scheduled_at??m.sent_at??m.created_at),"MMM d, yyyy • HH:mm")}</td></tr>)}</tbody></table></div></Card>}
     </div>
     {selected&&<Card className="h-fit min-w-0 p-5 lg:sticky lg:top-6">
       <div className="mb-5 flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[.18em] text-ink2">Message details</p><h2 className="mt-1 text-base font-semibold text-white">Broadcast</h2></div><div className="flex items-center gap-2"><StatusBadge status={selected.status}/><button onClick={()=>setSelected(null)} className="rounded-md p-1 text-ink2 hover:bg-surface2 hover:text-white" aria-label="Close"><X size={15}/></button></div></div>
-      <div className="space-y-3"><div className="rounded-xl bg-signal/10 p-1 transition-colors hover:bg-signal/15"><CopyField label="Title" value={title}/></div><div className="rounded-xl bg-sky-500/10 p-1 transition-colors hover:bg-sky-500/15"><CopyField label="Body" value={body}/></div></div>
+      <div className="space-y-3">
+        <div className="rounded-xl bg-violet-500/10 p-1 transition-colors hover:bg-violet-500/15"><CopyField label="Title" value={title}/></div>
+        <div className="rounded-xl bg-sky-500/10 p-1 transition-colors hover:bg-sky-500/15"><CopyField label="Body" value={body}/></div>
+      </div>
       <div className="mt-5 border-t border-border pt-4"><div className="mb-3 flex items-center justify-between"><p className="text-xs font-medium text-white">Apps & delivery</p>{["draft","scheduled"].includes(selected.status)&&<button onClick={()=>cancelMessage(selected)} className="flex items-center gap-1 text-xs text-danger hover:underline"><Ban size={11}/> Cancel</button>}</div>
-      {loadingTargets?<p className="text-xs text-ink2">Loading...</p>:<div className="space-y-2">{targets.map(t=><div key={t.id} className="rounded-lg border border-border p-3"><div className="flex items-center justify-between gap-2"><div className="flex min-w-0 items-center gap-2">{t.firebase_apps?.app_icon_url?<img src={t.firebase_apps.app_icon_url} alt="" className="h-7 w-7 rounded-md object-cover"/>:<div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface2 text-[9px] text-white">{t.firebase_apps?.name?.slice(0,1).toUpperCase()??"?"}</div>}<span className="truncate text-xs text-white">{t.firebase_apps?.name??"Unknown app"}</span></div></div>{t.error_message&&<p className="mt-1 text-xs text-danger">{t.error_message}</p>}</div>)}</div>}
+      {loadingTargets?<p className="text-xs text-ink2">Loading...</p>:<div className="space-y-2">{targets.map(t=><div key={t.id} className="rounded-lg border border-border p-3"><div className="flex min-w-0 items-center gap-2">{t.firebase_apps?.app_icon_url?<img src={t.firebase_apps.app_icon_url} alt="" className="h-7 w-7 rounded-md object-cover"/>:<div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface2 text-[9px] text-white">{t.firebase_apps?.name?.slice(0,1).toUpperCase()??"?"}</div>}<span className="truncate text-xs text-white">{t.firebase_apps?.name??"Unknown app"}</span></div>{t.error_message&&<p className="mt-1 text-xs text-danger">{t.error_message}</p>}</div>)}</div>}
       </div>
     </Card>}
    </div>
