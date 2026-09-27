@@ -1387,3 +1387,13 @@ body {
   from { opacity: 0; transform: translateY(-8px) scale(.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* Responsive dashboard surfaces */
+.dashboard-table-scroll { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+@media (max-width: 767px) {
+  .dashboard-table-scroll table { min-width: 640px; }
+  main { min-width: 0; }
+}
+@media (max-width: 520px) {
+  .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem; }
+}
