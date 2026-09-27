@@ -53,7 +53,7 @@ async function decryptServiceAccount(app: FirebaseApp) {
 
   const key = await crypto.subtle.importKey(
     "raw",
-    base64ToBytes(secretHex.match(/.{2}/g)!.map((pair) => String.fromCharCode(parseInt(pair, 16))).join("") as unknown as ArrayBuffer),
+    hexToBytes(secretHex),
     { name: "AES-GCM" },
     false,
     ["decrypt"],
