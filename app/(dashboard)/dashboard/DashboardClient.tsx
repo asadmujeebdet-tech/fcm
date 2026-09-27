@@ -24,14 +24,24 @@ export function DashboardClient() {
   const [apps, setApps] = useState<FirebaseAppPublic[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/apps").then((r) => r.json()),
-      fetch("/api/messages").then((r) => r.json()),
+      fetch("/api/apps").then(async (r) => ({ ok: r.ok, data: await r.json() })),
+      fetch("/api/messages").then(async (r) => ({ ok: r.ok, data: await r.json() })),
     ]).then(([appsRes, messagesRes]) => {
-      setApps(appsRes.apps ?? []);
-      setMessages(messagesRes.messages ?? []);
+      if (!appsRes.ok) {
+        setApiError(`Apps API: ${appsRes.data?.error ?? "Request failed"}`);
+      } else if (!messagesRes.ok) {
+        setApiError(`Messages API: ${messagesRes.data?.error ?? "Request failed"}`);
+      } else {
+        setApps(appsRes.data.apps ?? []);
+        setMessages(messagesRes.data.messages ?? []);
+      }
+      setLoading(false);
+    }).catch((error) => {
+      setApiError(error instanceof Error ? error.message : "Failed to load dashboard data");
       setLoading(false);
     });
   }, []);
@@ -83,6 +93,16 @@ export function DashboardClient() {
           </Link>
         </div>
       </div>
+
+      {apiError && (
+        <Card className="border border-red-500/30 bg-red-500/10">
+          <div className="p-4 text-sm text-red-300">
+            <p className="font-medium">Database/API error</p>
+            <p className="mt-1 font-mono text-xs">{apiError}</p>
+            <p className="mt-2 text-xs text-red-200/70">Open /api/health/db to verify the Render database connection.</p>
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         {stats.map((s) => {
