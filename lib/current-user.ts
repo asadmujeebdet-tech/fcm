@@ -1,14 +1,15 @@
 import { cookies } from "next/headers";
+import { createHash } from "crypto";
 import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth";
 import { query } from "@/lib/db";
 
 /**
- * This is a single-account FCM dashboard.
+ * Single-account dashboard.
  *
- * The application does not maintain a users table. Existing application
- * records already contain the owner UUID in firebase_apps.user_id/messages.user_id,
- * so resolve the dashboard owner directly from those tables instead of
- * querying Supabase Auth (auth.users).
+ * Existing app/message rows carry the owner UUID. For a brand-new database,
+ * there may be no row yet, so derive one stable UUID from the configured
+ * login email. This allows the first app to be created instead of returning
+ * Unauthorized.
  */
 export async function getCurrentUserId(): Promise<string | null> {
   const token = cookies().get(AUTH_COOKIE)?.value;
@@ -27,7 +28,14 @@ export async function getCurrentUserId(): Promise<string | null> {
       LIMIT 1
     `);
 
-    return result.rows[0]?.user_id ?? null;
+    if (result.rows[0]?.user_id) return result.rows[0].user_id;
+
+    const email = process.env.EMAIL?.trim();
+    if (!email) return null;
+
+    // UUID-shaped stable owner ID for the single configured dashboard account.
+    const hash = createHash("sha256").update(`fcm-owner:${email}`).digest("hex");
+    return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
   } catch {
     return null;
   }
