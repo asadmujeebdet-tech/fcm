@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentUserId } from "@/lib/current-user";
 import { dispatchMessage } from "@/lib/dispatch-message";
 import { Message } from "@/types/database";
 
@@ -27,17 +27,14 @@ const baseSchema = z.object({
 });
 
 export async function GET() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("messages")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -45,11 +42,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const parsed = baseSchema.safeParse(body);
@@ -86,7 +80,7 @@ export async function POST(req: NextRequest) {
   const { data: ownedApps, error: ownedAppsError } = await admin
     .from("firebase_apps")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .in("id", input.appIds);
 
   if (ownedAppsError) return NextResponse.json({ error: ownedAppsError.message }, { status: 500 });
@@ -102,7 +96,7 @@ export async function POST(req: NextRequest) {
     const { data: message, error: insertError } = await admin
       .from("messages")
       .insert({
-        user_id: user.id,
+        user_id: userId,
         format: input.format,
         topic: input.topic || "",
         notification_title: input.notificationTitle || null,
@@ -144,7 +138,7 @@ export async function POST(req: NextRequest) {
     const { data: message, error: insertError } = await admin
       .from("messages")
       .insert({
-        user_id: user.id,
+        user_id: userId,
         format: input.format,
         topic: input.topic || "",
         notification_title: input.notificationTitle || null,
