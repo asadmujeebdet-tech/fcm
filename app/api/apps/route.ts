@@ -10,7 +10,7 @@ const publicColumns="id,user_id,name,project_id,package_name,app_icon_url,defaul
 
 export async function GET(){
  const userId=await getCurrentUserId(); if(!userId)return NextResponse.json({error:"Unauthorized"},{status:401});
- try{const r=await query(`SELECT ${publicColumns} FROM public.firebase_apps WHERE user_id=$1 ORDER BY created_at DESC`,[userId]);return NextResponse.json({apps:r.rows});}
+ try{const r=await query(`SELECT ${publicColumns} FROM public.firebase_apps ORDER BY created_at DESC`);return NextResponse.json({apps:r.rows});}
  catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
 export async function POST(req:NextRequest){
