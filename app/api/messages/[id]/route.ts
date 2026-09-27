@@ -8,9 +8,9 @@ export async function GET(_req:NextRequest,{params}:{params:{id:string}}){
  try{
   const m=await query("SELECT * FROM public.messages WHERE id=$1 AND user_id=$2",[params.id,userId]);const message=m.rows[0];
   if(!message)return NextResponse.json({error:"Not found"},{status:404});
-  const t=await query(\`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,fa.name AS app_name,fa.app_icon_url
+  const t=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,fa.name AS app_name,fa.app_icon_url
     FROM public.message_targets mt LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
-    WHERE mt.message_id=$1 ORDER BY mt.created_at ASC\`,[message.id]);
+    WHERE mt.message_id=$1 ORDER BY mt.created_at ASC`,[message.id]);
   return NextResponse.json({message,targets:t.rows.map(row=>({...row,firebase_apps:row.app_name?{name:row.app_name,app_icon_url:row.app_icon_url}:null}))});
  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
