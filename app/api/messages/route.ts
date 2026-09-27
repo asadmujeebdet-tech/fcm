@@ -17,7 +17,7 @@ const messageColumns="*";
 
 export async function GET(){
  const userId=await getCurrentUserId();if(!userId)return NextResponse.json({error:"Unauthorized"},{status:401});
- try{const r=await query(`SELECT ${messageColumns} FROM public.messages WHERE user_id=$1 ORDER BY created_at DESC`,[userId]);return NextResponse.json({messages:r.rows});}
+ try{const r=await query(`SELECT ${messageColumns} FROM public.messages ORDER BY created_at DESC`);return NextResponse.json({messages:r.rows});}
  catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
 export async function POST(req:NextRequest){
