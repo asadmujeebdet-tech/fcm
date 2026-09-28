@@ -4,7 +4,6 @@ import { decrypt } from "@/lib/encryption";
 import { FirebaseApp, Message } from "@/types/database";
 
 function buildFcmMessage(message:Message,topic:string):admin.messaging.Message{
- if(message.format==="data")return{topic,data:{app_url:message.data_app_url??"",title:message.data_title??"",short_desc:message.data_short_desc??"",long_desc_:message.data_long_desc??"",icon:message.data_icon??"",feature:message.data_feature??""}};
  return{topic,notification:{title:message.notification_title??"",body:message.notification_body??"",...(message.notification_image?{imageUrl:message.notification_image}:{})}};
 }
 
