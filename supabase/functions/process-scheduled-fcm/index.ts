@@ -152,6 +152,10 @@ async function sendToFirebase(
     throw new Error(detail);
   }
 
+  if (!data?.name || typeof data.name !== "string") {
+    throw new Error("FCM accepted the request but returned no message ID.");
+  }
+
   return data.name as string;
 }
 
