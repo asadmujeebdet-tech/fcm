@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 const baseSchema = z.object({
   appIds:z.array(z.string().uuid()).min(1,"Select at least one app"), topic:z.string().default(""),
   format:z.enum(["notification","data"]), action:z.enum(["draft","send_now","schedule"]),
-  scheduledAt:z.union([z.string().datetime(),z.array(z.string().datetime())]).optional(),
+  scheduledAt:z.union([z.string().datetime({ offset: true }),z.array(z.string().datetime({ offset: true }))]).optional(),
   notificationTitle:z.string().optional(), notificationBody:z.string().optional(), notificationImage:z.string().optional(),
   dataAppUrl:z.string().optional(), dataTitle:z.string().optional(), dataShortDesc:z.string().optional(),
   dataLongDesc:z.string().optional(), dataIcon:z.string().optional(), dataFeature:z.string().optional()
@@ -43,6 +43,16 @@ export async function POST(req:NextRequest){
     return NextResponse.json({error:"dataAppUrl, dataTitle and dataShortDesc are required for the data format"},{status:400});
   const scheduleTimes=Array.isArray(input.scheduledAt)?input.scheduledAt:input.scheduledAt?[input.scheduledAt]:[];
   if(input.action==="schedule"&&!scheduleTimes.length)return NextResponse.json({error:"At least one scheduledAt value is required to schedule a message"},{status:400});
+
+  if(input.action==="schedule"){
+    const invalidPakistanTime=scheduleTimes.find((value) => !/[+]05:00$/.test(value));
+    if(invalidPakistanTime){
+      return NextResponse.json(
+        {error:"Scheduled times must use Pakistan Time (PKT, UTC+05:00)."},
+        {status:400}
+      );
+    }
+  }
   try{
     const owned=await query<{id:string}>(`SELECT id FROM public.firebase_apps WHERE user_id=$1 AND id=ANY($2::uuid[])`,[userId,input.appIds]);
     const ownedIds=new Set(owned.rows.map(a=>a.id)); const validAppIds=input.appIds.filter(id=>ownedIds.has(id));
