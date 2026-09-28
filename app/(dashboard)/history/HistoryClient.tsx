@@ -9,6 +9,28 @@ import { Message, MessageApp, MessageTarget } from "@/types/database";
 
 type TargetRow = MessageTarget & { firebase_apps: { name:string; app_icon_url?:string|null }|null };
 
+function formatPakistanDate(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const datePart = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Karachi",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+
+  const timePart = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Karachi",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+
+  return datePart + " • " + timePart;
+}
+
 function AppPills({apps,fallback}:{apps?:MessageApp[];fallback:number}) {
   if(!apps?.length)return <span className="text-xs text-ink2">—</span>;
   return <div className="flex items-center gap-1">{apps.map(app=>app.app_icon_url?<img key={app.id} src={app.app_icon_url} alt={app.name} title={app.name} className="h-7 w-7 rounded-md object-cover"/>:<div key={app.id} title={app.name} className="flex h-7 w-7 items-center justify-center rounded-md bg-surface2 text-[9px] font-bold text-white">{app.name.slice(0,1).toUpperCase()}</div>)}</div>;
@@ -64,7 +86,7 @@ export function HistoryClient(){
    <div><h1 className="text-xl font-semibold text-white">History</h1><p className="mt-1 text-sm text-ink2">Every broadcast — sent, scheduled, or drafted.</p></div>
    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
     <div className="min-w-0">
-     {!loading&&messages.length===0?<EmptyState title="Nothing sent yet" description="Your broadcast history will show up here once you send or schedule a message."/>:<Card className="overflow-hidden"><div className="w-full"><table className="w-full table-fixed text-left text-sm"><thead><tr className="border-b border-border text-xs text-ink2"><th className="w-[30%] px-3 py-3 font-normal sm:px-5">Message</th><th className="w-[14%] px-3 py-3 font-normal sm:px-5">Apps</th><th className="w-[17%] px-3 py-3 font-normal sm:px-5">Delivered / Failed</th><th className="w-[15%] px-3 py-3 font-normal sm:px-5">Status</th><th className="w-[24%] px-3 py-3 font-normal sm:px-5">When</th></tr></thead><tbody>{messages.map(m=><tr key={m.id} onClick={()=>openDetail(m)} className={`cursor-pointer border-b border-border last:border-0 hover:bg-surface2/50 ${selected?.id===m.id?"bg-surface2/40":""}`}><td className="truncate px-3 py-3 font-medium text-white sm:px-5">{m.format==="notification"?m.notification_title:m.data_title}</td><td className="px-3 py-3 sm:px-5"><AppPills apps={m.apps} fallback={m.total_apps_targeted}/></td><td className="px-3 py-3 font-mono text-[10px] text-ink2 sm:px-5 sm:text-xs">{m.total_sent} / {m.total_failed}</td><td className="px-3 py-3 sm:px-5"><StatusBadge status={m.status}/></td><td className="px-3 py-3 text-[10px] leading-4 text-ink2 sm:px-5 sm:text-xs">{format(new Date(m.scheduled_at??m.sent_at??m.created_at),"MMM d, yyyy • HH:mm")}</td></tr>)}</tbody></table></div></Card>}
+     {!loading&&messages.length===0?<EmptyState title="Nothing sent yet" description="Your broadcast history will show up here once you send or schedule a message."/>:<Card className="overflow-hidden"><div className="w-full"><table className="w-full table-fixed text-left text-sm"><thead><tr className="border-b border-border text-xs text-ink2"><th className="w-[30%] px-3 py-3 font-normal sm:px-5">Message</th><th className="w-[14%] px-3 py-3 font-normal sm:px-5">Apps</th><th className="w-[17%] px-3 py-3 font-normal sm:px-5">Delivered / Failed</th><th className="w-[15%] px-3 py-3 font-normal sm:px-5">Status</th><th className="w-[24%] px-3 py-3 font-normal sm:px-5">When</th></tr></thead><tbody>{messages.map(m=><tr key={m.id} onClick={()=>openDetail(m)} className={`cursor-pointer border-b border-border last:border-0 hover:bg-surface2/50 ${selected?.id===m.id?"bg-surface2/40":""}`}><td className="truncate px-3 py-3 font-medium text-white sm:px-5">{m.format==="notification"?m.notification_title:m.data_title}</td><td className="px-3 py-3 sm:px-5"><AppPills apps={m.apps} fallback={m.total_apps_targeted}/></td><td className="px-3 py-3 font-mono text-[10px] text-ink2 sm:px-5 sm:text-xs">{m.total_sent} / {m.total_failed}</td><td className="px-3 py-3 sm:px-5"><StatusBadge status={m.status}/></td><td className="px-3 py-3 text-[10px] leading-4 text-ink2 sm:px-5 sm:text-xs">{formatPakistanDate(m.scheduled_at??m.sent_at??m.created_at)}</td></tr>)}</tbody></table></div></Card>}
     </div>
     {selected&&<Card className="h-fit min-w-0 p-5 lg:sticky lg:top-6">
       <div className="mb-5 flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[.18em] text-ink2">Message details</p><h2 className="mt-1 text-base font-semibold text-white">Broadcast</h2></div><div className="flex items-center gap-2"><StatusBadge status={selected.status}/><button onClick={()=>setSelected(null)} className="rounded-md p-1 text-ink2 hover:bg-surface2 hover:text-white" aria-label="Close"><X size={15}/></button></div></div>
