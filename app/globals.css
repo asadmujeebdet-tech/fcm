@@ -1478,14 +1478,83 @@ body {
 
 
 /* Compact single-line Compose scheduler */
-.schedule-single-line { display:flex; align-items:center; gap:8px; width:100%; }
+.schedule-single-line { display:flex; align-items:center; gap:10px; width:100%; }
 .schedule-date-control { position:relative; flex:1 1 auto; min-width:0; }
-.schedule-date-control input[type="date"] { width:100%; height:42px; border:1px solid #30394A; border-radius:9px; background:#121721; color:#EDEEF3; padding:0 38px 0 11px; font-size:12px; font-weight:600; color-scheme:dark; outline:none; }
-.schedule-date-control input[type="date"]:focus, .schedule-time-input:focus { border-color:#4D7CFE; box-shadow:0 0 0 3px rgba(77,124,254,.08); }
+.schedule-date-control input[type="date"] { width:100%; height:44px; border:1px solid #30394A; border-radius:10px; background:#121721; color:#EDEEF3; padding:0 40px 0 12px; font-size:12px; font-weight:600; color-scheme:dark; outline:none; transition:border-color .18s ease,box-shadow .18s ease; }
+.schedule-date-control input[type="date"]:focus { border-color:#4D7CFE; box-shadow:0 0 0 3px rgba(77,124,254,.08); }
 .schedule-date-control input[type="date"]::-webkit-calendar-picker-indicator { opacity:0; width:0; }
-.schedule-calendar-button { position:absolute; right:0; top:0; width:38px; height:42px; display:flex; align-items:center; justify-content:center; color:#AAB3C5; background:transparent; border:0; cursor:pointer; }
-.schedule-time-input { flex:0 0 132px; width:132px; height:42px; border:1px solid #30394A; border-radius:9px; background:#121721; color:#EDEEF3; padding:0 11px; font-size:12px; font-weight:600; outline:none; }
-@media (max-width:420px) { .schedule-single-line { gap:6px; } .schedule-time-input { flex-basis:118px; width:118px; } }
+.schedule-calendar-button { position:absolute; right:0; top:0; width:40px; height:44px; display:flex; align-items:center; justify-content:center; color:#8E9AAF; background:transparent; border:0; cursor:pointer; transition:color .18s ease,background .18s ease; }
+.schedule-calendar-button:hover { color:#EDEEF3; background:rgba(255,255,255,.03); }
+
+.schedule-time-control {
+  flex:0 0 186px;
+  width:186px;
+  height:44px;
+  display:flex;
+  align-items:center;
+  border:1px solid #30394A;
+  border-radius:10px;
+  background:#121721;
+  overflow:hidden;
+  transition:border-color .18s ease,box-shadow .18s ease;
+}
+.schedule-time-control:focus-within {
+  border-color:#4D7CFE;
+  box-shadow:0 0 0 3px rgba(77,124,254,.08);
+}
+.schedule-part-input {
+  height:42px;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  padding:0 !important;
+  color:#EDEEF3 !important;
+  font-size:13px !important;
+  font-weight:700;
+  text-align:center;
+  outline:none !important;
+  box-shadow:none !important;
+}
+.schedule-hour-input { width:48px; flex:0 0 48px; }
+.schedule-minute-input { width:48px; flex:0 0 48px; }
+.schedule-time-colon { flex:0 0 10px; color:#667085; font-size:14px; font-weight:700; text-align:center; user-select:none; }
+.schedule-period-control {
+  width:56px;
+  height:42px;
+  flex:none;
+  display:grid;
+  grid-template-rows:15px 12px 15px;
+  align-items:center;
+  justify-items:center;
+  border-left:1px solid #30394A;
+  color:#EDEEF3;
+  font-size:10px;
+  font-weight:800;
+  line-height:1;
+}
+.schedule-period-arrow {
+  width:100%;
+  height:15px;
+  display:grid;
+  place-items:center;
+  border:0;
+  background:transparent;
+  color:#6F7A8E;
+  cursor:pointer;
+  padding:0;
+  transition:color .15s ease,background .15s ease;
+}
+.schedule-period-arrow:hover,
+.schedule-period-arrow.is-active {
+  color:#4D7CFE;
+  background:rgba(77,124,254,.08);
+}
+@media (max-width:520px) {
+  .schedule-single-line { gap:6px; }
+  .schedule-time-control { flex-basis:174px; width:174px; }
+  .schedule-hour-input,.schedule-minute-input { width:44px; flex-basis:44px; }
+  .schedule-period-control { width:50px; }
+}
 
 
 /* Compact Compose time control: editable hh:mm with AM/PM spinner */
