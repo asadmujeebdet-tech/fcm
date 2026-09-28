@@ -79,7 +79,7 @@ export function HistoryClient(){
    setSelected(null);
  }
 
- const title=selected?.format==="notification"?selected.notification_title??"":selected?.data_title??"";
+ const title=selected?.notification_title??"";
  const body=selected?.format==="notification"?selected.notification_body??"":selected?.data_short_desc??"";
 
  return <div className="space-y-6">
