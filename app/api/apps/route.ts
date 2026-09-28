@@ -5,11 +5,11 @@ import { getCurrentUserId } from "@/lib/current-user";
 import { encrypt } from "@/lib/encryption";
 
 export const runtime="nodejs";
-const createAppSchema=z.object({name:z.string().min(1),defaultTopic:z.string().default(""),packageName:z.string().optional(),appIconUrl:z.string().url().or(z.literal("")).optional(),serviceAccount:z.string().min(1),isActive:z.boolean().default(true)});
-const publicColumns="id,user_id,name,project_id,package_name,app_icon_url,default_topic,is_active,created_at,updated_at";
+const createAppSchema=z.object({name:z.string().min(1),defaultTopic:z.string().default(""),appIconUrl:z.string().url().or(z.literal("")).optional(),serviceAccount:z.string().min(1),isActive:z.boolean().default(true)});
+const publicColumns="id,user_id,name,project_id,app_icon_url,default_topic,is_active,created_at,updated_at";
 
 export async function GET(){
- try{const r=await query(`SELECT id,user_id,name,project_id,package_name,app_icon_url,default_topic,is_active,created_at,updated_at FROM public.firebase_apps ORDER BY created_at DESC`);return NextResponse.json({apps:r.rows});}
+ try{const r=await query(`SELECT id,user_id,name,project_id,app_icon_url,default_topic,is_active,created_at,updated_at FROM public.firebase_apps ORDER BY created_at DESC`);return NextResponse.json({apps:r.rows});}
  catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
 export async function POST(req:NextRequest){
@@ -22,9 +22,9 @@ export async function POST(req:NextRequest){
  if(!projectId||!serviceAccountObj.private_key||!serviceAccountObj.client_email)return NextResponse.json({error:"serviceAccount JSON is missing required fields (project_id, private_key, client_email)"},{status:400});
  const {ciphertext,iv,tag}=encrypt(parsed.data.serviceAccount);
  try{
-  const r=await query(`INSERT INTO public.firebase_apps (user_id,name,project_id,package_name,app_icon_url,default_topic,is_active,service_account_encrypted,encryption_iv,encryption_tag)
-   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING ${publicColumns}`,
-   [userId,parsed.data.name,projectId,parsed.data.packageName||null,parsed.data.appIconUrl||null,parsed.data.defaultTopic||"",parsed.data.isActive,ciphertext,iv,tag]);
+  const r=await query(`INSERT INTO public.firebase_apps (user_id,name,project_id,app_icon_url,default_topic,is_active,service_account_encrypted,encryption_iv,encryption_tag)
+   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${publicColumns}`,
+   [userId,parsed.data.name,projectId,parsed.data.appIconUrl||null,parsed.data.defaultTopic||"",parsed.data.isActive,ciphertext,iv,tag]);
   return NextResponse.json({app:r.rows[0]},{status:201});
  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
