@@ -4,9 +4,8 @@ export interface FirebaseApp { id:string; user_id:string; name:string; project_i
 export type FirebaseAppPublic = Omit<FirebaseApp,"service_account_encrypted"|"encryption_iv"|"encryption_tag">;
 export interface MessageApp { id:string; name:string; app_icon_url:string|null; }
 export interface Message {
- id:string; user_id:string; format:MessageFormat; topic:string;
+ id:string; user_id:string; topic:string;
  notification_title:string|null; notification_body:string|null; notification_image:string|null;
- data_app_url:string|null; data_title:string|null; data_short_desc:string|null; data_long_desc:string|null; data_icon:string|null; data_feature:string|null;
  status:MessageStatus; scheduled_at:string|null; sent_at:string|null;
  total_apps_targeted:number; total_sent:number; total_failed:number; sent_count:number; delivered:number; delivery_rate:number|null;
  impressions:number; opened:number; open_rate:number|null; dismissed:number; dismiss_rate:number|null; delivery_failed:number;
