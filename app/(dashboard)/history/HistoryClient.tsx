@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
 import { X, Ban, Copy, Check } from "lucide-react";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/StatusBadge";
