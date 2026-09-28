@@ -55,8 +55,8 @@ export async function POST(req:NextRequest){
     if(!validAppIds.length)return NextResponse.json({error:"None of the selected apps are valid"},{status:400});
     const createMessage=async(status:"draft"|"scheduled",scheduledAt:string|null)=>{
       const r=await query<Message>(`INSERT INTO public.messages
-        (user_id,format,topic,notification_title,notification_body,notification_image,data_app_url,data_title,data_short_desc,data_long_desc,data_icon,data_feature,status,scheduled_at,total_apps_targeted)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,[
+        (user_id,topic,notification_title,notification_body,notification_image,status,scheduled_at,total_apps_targeted)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,[
           userId,input.topic||"",input.notificationTitle||null,input.notificationBody||null,input.notificationImage||null,
           status,scheduledAt,validAppIds.length]);
       const message=r.rows[0]; if(!message)throw new Error("Failed to create message");
