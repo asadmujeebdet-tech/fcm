@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Radio, ArrowUpRight, BarChart3, Send, CheckCheck, TrendingUp, Eye, XCircle, TimerReset, BellRing } from "lucide-react";
+import { Radio, ArrowUpRight, BarChart3, Send, CheckCheck, TrendingUp, XCircle, TimerReset } from "lucide-react";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -50,24 +50,14 @@ export function DashboardClient() {
   const activeApps=apps.filter(a=>a.is_active).length;
   const totalSent=messages.reduce((s,m)=>s+(m.total_sent||m.sent_count||0),0);
   const totalDelivered=messages.reduce((s,m)=>s+(m.delivered||m.total_sent||0),0);
-  const totalImpressions=messages.reduce((s,m)=>s+(m.impressions||m.total_sent||0),0);
-  const totalOpened=messages.reduce((s,m)=>s+(m.opened||0),0);
-  const totalDismissed=messages.reduce((s,m)=>s+(m.dismissed||0),0);
   const totalFailed=messages.reduce((s,m)=>s+(m.delivery_failed||m.total_failed||0),0);
   const scheduledCount=messages.filter(m=>m.status==="scheduled").length;
   const deliveryRate=totalSent+totalFailed===0?0:Math.round((totalDelivered/Math.max(1,totalSent+totalFailed))*100);
-  const openRate=totalImpressions===0?0:Math.round((totalOpened/Math.max(1,totalImpressions))*100);
-  const dismissRate=totalImpressions===0?0:Math.round((totalDismissed/Math.max(1,totalImpressions))*100);
   const stats=[
     {label:"Connected apps",value:loading?"—":`${activeApps}/${apps.length}`,icon:BarChart3,tone:"signal"},
     {label:"Sent",value:loading?"—":totalSent.toLocaleString(),icon:Send,tone:"wave"},
     {label:"Delivered",value:loading?"—":totalDelivered.toLocaleString(),icon:CheckCheck,tone:"success"},
     {label:"Delivery rate",value:loading?"—":`${deliveryRate}%`,icon:TrendingUp,tone:"signal"},
-    {label:"Impressions",value:loading?"—":totalImpressions.toLocaleString(),icon:BellRing,tone:"violet"},
-    {label:"Opened",value:loading?"—":totalOpened.toLocaleString(),icon:Eye,tone:"info"},
-    {label:"Open rate",value:loading?"—":`${openRate}%`,icon:TrendingUp,tone:"warning"},
-    {label:"Dismissed",value:loading?"—":totalDismissed.toLocaleString(),icon:XCircle,tone:"danger"},
-    {label:"Dismiss rate",value:loading?"—":`${dismissRate}%`,icon:TimerReset,tone:"muted"},
     {label:"Delivery failed",value:loading?"—":totalFailed.toLocaleString(),icon:XCircle,tone:"danger"},
     {label:"Scheduled",value:loading?"—":scheduledCount,icon:TimerReset,tone:"wave"},
   ];
