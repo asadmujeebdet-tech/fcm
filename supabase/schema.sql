@@ -15,7 +15,7 @@ create table if not exists firebase_apps (
   name                      text not null,
   project_id                text not null,
   app_icon_url              text,
-  default_topic             text not null default '',
+  topic             text not null default '',
   service_account_encrypted text not null,
   encryption_iv             text not null,
   encryption_tag            text not null,
