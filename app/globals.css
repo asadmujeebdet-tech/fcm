@@ -1397,3 +1397,81 @@ body {
 @media (max-width: 520px) {
   .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem; }
 }
+
+
+/* Compose scheduler controls */
+.schedule-time-grid {
+  display: grid;
+  grid-template-columns: minmax(145px, 1.55fr) minmax(72px, .8fr) minmax(72px, .8fr) minmax(78px, .85fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.schedule-time-grid > * {
+  min-width: 0;
+}
+
+.schedule-time-grid input[type="date"],
+.schedule-time-grid select {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  border: 1px solid #30394A !important;
+  border-radius: 9px !important;
+  background: #121721 !important;
+  color: #EDEEF3 !important;
+  padding: 0 11px !important;
+  font-size: 11px !important;
+  font-weight: 600;
+  outline: none;
+  box-shadow: none;
+}
+
+.schedule-time-grid input[type="date"] {
+  color-scheme: dark;
+  cursor: text;
+  padding-right: 9px !important;
+}
+
+.schedule-time-grid input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: .85;
+  cursor: pointer;
+  filter: invert(1) brightness(1.25);
+  padding: 4px;
+}
+
+.schedule-time-grid input[type="date"]:focus,
+.schedule-time-grid select:focus {
+  border-color: #4D7CFE !important;
+  box-shadow: 0 0 0 3px rgba(77,124,254,.08) !important;
+}
+
+.schedule-time-grid select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.schedule-time-grid select option {
+  background: #121721;
+  color: #EDEEF3;
+}
+
+@media (max-width: 640px) {
+  .schedule-time-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .schedule-time-grid input[type="date"] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 420px) {
+  .schedule-time-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .schedule-time-grid input[type="date"] {
+    grid-column: 1 / -1;
+  }
+}
