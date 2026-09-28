@@ -13,17 +13,10 @@ type FirebaseApp = {
 
 type Message = {
   id: string;
-  format: "notification" | "data";
   topic: string;
   notification_title: string | null;
   notification_body: string | null;
   notification_image: string | null;
-  data_app_url: string | null;
-  data_title: string | null;
-  data_short_desc: string | null;
-  data_long_desc: string | null;
-  data_icon: string | null;
-  data_feature: string | null;
 };
 
 type Target = {
@@ -121,22 +114,6 @@ async function getAccessToken(serviceAccount: {
 }
 
 function buildMessage(message: Message, topic: string) {
-  if (message.format === "data") {
-    return {
-      message: {
-        topic,
-        data: {
-          app_url: message.data_app_url ?? "",
-          title: message.data_title ?? "",
-          short_desc: message.data_short_desc ?? "",
-          long_desc_: message.data_long_desc ?? "",
-          icon: message.data_icon ?? "",
-          feature: message.data_feature ?? "",
-        },
-      },
-    };
-  }
-
   return {
     message: {
       topic,
