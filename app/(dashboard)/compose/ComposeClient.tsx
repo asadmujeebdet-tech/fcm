@@ -28,7 +28,8 @@ export function ComposeClient() {
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleTimes, setScheduleTimes] = useState<string[]>(["|||AM"]);
-  const [scheduleTimeDrafts, setScheduleTimeDrafts] = useState<Record<number, string>>({});
+  const [scheduleHourDrafts, setScheduleHourDrafts] = useState<Record<number, string>>({});
+  const [scheduleMinuteDrafts, setScheduleMinuteDrafts] = useState<Record<number, string>>({});
 
   function parseScheduleValue(value: string) {
     const parts = value.split("|");
@@ -351,25 +352,46 @@ export function ComposeClient() {
                             <input
                               type="text"
                               inputMode="numeric"
-                              value={scheduleTimeDrafts[index] ?? (parsed.hour ? `${parsed.hour.padStart(2, "0")}:${parsed.minute}` : "")}
+                              maxLength={2}
+                              value={scheduleHourDrafts[index] ?? (parsed.hour ? parsed.hour.padStart(2, "0") : "")}
                               onChange={(e) => {
-                                const raw = e.target.value.replace(/[^0-9:]/g, "").slice(0, 5);
-                                setScheduleTimeDrafts((prev) => ({ ...prev, [index]: raw }));
+                                const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
+                                setScheduleHourDrafts((prev) => ({ ...prev, [index]: raw }));
                               }}
                               onBlur={() => {
-                                const raw = (scheduleTimeDrafts[index] ?? "").trim();
-                                const match = raw.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
-                                if (!match) return;
-                                const hour = Math.min(12, Math.max(1, Number(match[1]) || 12));
-                                const minute = Math.min(59, Math.max(0, Number(match[2] ?? 0))).toString().padStart(2, "0");
+                                const raw = (scheduleHourDrafts[index] ?? parsed.hour ?? "").trim();
+                                if (!raw) return;
+                                const hour = Math.min(12, Math.max(1, Number(raw) || 12));
                                 const next = [...scheduleTimes];
-                                next[index] = buildScheduleValue(parsed.date, String(hour), minute, parsed.period);
+                                next[index] = buildScheduleValue(parsed.date, String(hour), parsed.minute, parsed.period);
                                 setScheduleTimes(next);
-                                setScheduleTimeDrafts((prev) => ({ ...prev, [index]: `${String(hour).padStart(2, "0")}:${minute}` }));
+                                setScheduleHourDrafts((prev) => ({ ...prev, [index]: String(hour).padStart(2, "0") }));
                               }}
-                              placeholder="hh:mm"
-                              aria-label="Schedule time"
-                              className="schedule-time-input"
+                              placeholder="hh"
+                              aria-label="Schedule hour"
+                              className="schedule-part-input schedule-hour-input"
+                            />
+                            <span className="schedule-time-colon" aria-hidden="true">:</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={2}
+                              value={scheduleMinuteDrafts[index] ?? (parsed.hour ? parsed.minute : "")}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
+                                setScheduleMinuteDrafts((prev) => ({ ...prev, [index]: raw }));
+                              }}
+                              onBlur={() => {
+                                const raw = (scheduleMinuteDrafts[index] ?? parsed.minute ?? "").trim();
+                                const minute = Math.min(59, Math.max(0, Number(raw) || 0));
+                                const next = [...scheduleTimes];
+                                next[index] = buildScheduleValue(parsed.date, parsed.hour, String(minute).padStart(2, "0"), parsed.period);
+                                setScheduleTimes(next);
+                                setScheduleMinuteDrafts((prev) => ({ ...prev, [index]: String(minute).padStart(2, "0") }));
+                              }}
+                              placeholder="mm"
+                              aria-label="Schedule minute"
+                              className="schedule-part-input schedule-minute-input"
                             />
                             <div className="schedule-period-control" aria-label="AM or PM">
                               <button
@@ -419,7 +441,11 @@ export function ComposeClient() {
 
                   <button
                     type="button"
-                    onClick={() => { setScheduleTimes((prev) => [...prev, "|||AM"]); setScheduleTimeDrafts((prev) => ({ ...prev, [scheduleTimes.length]: "" })); }}
+                    onClick={() => {
+                      setScheduleTimes((prev) => [...prev, "|||AM"]);
+                      setScheduleHourDrafts((prev) => ({ ...prev, [scheduleTimes.length]: "" }));
+                      setScheduleMinuteDrafts((prev) => ({ ...prev, [scheduleTimes.length]: "" }));
+                    }}
                     className="text-xs text-signal hover:underline"
                   >
                     + Add another time
