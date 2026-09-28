@@ -1,6 +1,6 @@
 export type MessageStatus = "draft"|"scheduled"|"sending"|"sent"|"partial_failure"|"failed"|"canceled";
 export type TargetStatus = "pending" | "sent" | "failed";
-export interface FirebaseApp { id:string; user_id:string; name:string; project_id:string; app_icon_url:string|null; default_topic:string; service_account_encrypted:string; encryption_iv:string; encryption_tag:string; is_active:boolean; created_at:string; updated_at:string; }
+export interface FirebaseApp { id:string; user_id:string; name:string; project_id:string; app_icon_url:string|null; topic:string; service_account_encrypted:string; encryption_iv:string; encryption_tag:string; is_active:boolean; created_at:string; updated_at:string; }
 export type FirebaseAppPublic = Omit<FirebaseApp,"service_account_encrypted"|"encryption_iv"|"encryption_tag">;
 export interface MessageApp { id:string; name:string; app_icon_url:string|null; }
 export interface Message {
