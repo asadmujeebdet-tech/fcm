@@ -289,7 +289,31 @@ Deno.serve(async (request) => {
 
     const results = [];
     for (const message of (messages ?? []) as Message[]) {
-      results.push(await processMessage(supabaseAdmin, message));
+      try {
+        results.push(await processMessage(supabaseAdmin, message));
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown scheduler error.";
+        console.error(`Failed to process scheduled message ${message.id}:`, errorMessage);
+
+        await supabaseAdmin
+          .from("messages")
+          .update({
+            status: "failed",
+            sent_at: new Date().toISOString(),
+            total_sent: 0,
+            total_failed: message.total_apps_targeted ?? 0,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", message.id);
+
+        results.push({
+          id: message.id,
+          sent: 0,
+          failed: message.total_apps_targeted ?? 0,
+          status: "failed",
+          error: errorMessage,
+        });
+      }
     }
 
     return Response.json({
