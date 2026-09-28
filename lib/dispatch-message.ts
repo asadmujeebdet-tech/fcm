@@ -3,7 +3,13 @@ import { query } from "@/lib/db";
 import { decrypt } from "@/lib/encryption";
 import { FirebaseApp, Message } from "@/types/database";
 
-const MAX_TOPIC_PAYLOAD_BYTES = 2048;\n\nfunction getPayloadSizeBytes(payload: unknown): number {\n return new TextEncoder().encode(JSON.stringify(payload)).byteLength;\n}\n\nfunction buildFcmMessage(message:Message,topic:string):admin.messaging.Message{
+const MAX_TOPIC_PAYLOAD_BYTES = 2048;
+
+function getPayloadSizeBytes(payload: unknown): number {
+ return new TextEncoder().encode(JSON.stringify(payload)).byteLength;
+}
+
+function buildFcmMessage(message:Message,topic:string):admin.messaging.Message{
  return{topic,notification:{title:message.notification_title??"",body:message.notification_body??"",...(message.notification_image?{imageUrl:message.notification_image}:{})}};
 }
 
@@ -27,7 +33,13 @@ export async function dispatchMessage(message:Message):Promise<void>{
    const serviceAccount=JSON.parse(decrypt(app.service_account_encrypted,app.encryption_iv,app.encryption_tag));
    adminApp=admin.initializeApp({credential:admin.credential.cert(serviceAccount)},appName);
    const topic=app.topic?.trim();
-   const fcmMessageId=await admin.messaging(adminApp).send(buildFcmMessage(message,topic));
+   if(!topic) throw new Error(`No topic configured for app ${app.name}.`);
+   const payload=buildFcmMessage(message,topic);
+   const payloadBytes=getPayloadSizeBytes(payload);
+   if(payloadBytes>MAX_TOPIC_PAYLOAD_BYTES){
+    throw new Error(`FCM payload is too large: ${payloadBytes} bytes. Maximum for topic messages is ${MAX_TOPIC_PAYLOAD_BYTES} bytes.`);
+   }
+   const fcmMessageId=await admin.messaging(adminApp).send(payload);
    sent++;
    await query("UPDATE public.message_targets SET status='sent',fcm_message_id=$2,sent_at=$3 WHERE id=$1",[target.id,fcmMessageId,new Date().toISOString()]);
   }catch(err:any){
