@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown, Minus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Textarea } from "@/components/ui/Field";
+import { Input, Label, Select, Textarea } from "@/components/ui/Field";
 import { FirebaseAppPublic } from "@/types/database";
 
 const DEFAULT_PREVIEW_ICON =
@@ -27,6 +27,28 @@ export function ComposeClient() {
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleTimes, setScheduleTimes] = useState<string[]>([""]);
+
+  function parseScheduleValue(value: string) {
+    const match = value.match(/^(\\d{4}-\\d{2}-\\d{2}) (\\d{1,2}):(\\d{2}) (AM|PM)$/);
+    return match
+      ? { date: match[1], hour: match[2], minute: match[3], period: match[4] as "AM" | "PM" }
+      : { date: "", hour: "", minute: "00", period: "AM" as const };
+  }
+
+  function buildScheduleValue(date: string, hour: string, minute: string, period: string) {
+    if (!date || !hour || !minute || !period) return "";
+    return \`\${date} \${hour}:\${minute} \${period}\`;
+  }
+
+  function scheduleValueToPakistanIso(value: string) {
+    const parsed = parseScheduleValue(value);
+    if (!parsed.date || !parsed.hour) return "";
+    let hour = Number(parsed.hour);
+    if (parsed.period === "AM") hour = hour === 12 ? 0 : hour;
+    else hour = hour === 12 ? 12 : hour + 12;
+    const hh = String(hour).padStart(2, "0");
+    return \`\${parsed.date}T\${hh}:\${parsed.minute}:00+05:00\`;
+  }
 
   const [submitting, setSubmitting] = useState<"send_now" | "schedule" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,14 +110,18 @@ export function ComposeClient() {
   }
 
   const normalizedScheduleTimes = scheduleTimes
-    .filter((time) => time && time.trim())
-    .map((time) => time.trim());
+    .map((time) => time.trim())
+    .filter(Boolean);
+
+  const scheduledPakistanIsoTimes = normalizedScheduleTimes
+    .map(scheduleValueToPakistanIso)
+    .filter(Boolean);
 
   const canSubmit =
     selectedAppIds.size > 0 &&
     notificationTitle.trim() &&
     notificationBody.trim() &&
-    (!scheduleEnabled || normalizedScheduleTimes.length > 0);
+    (!scheduleEnabled || scheduledPakistanIsoTimes.length > 0);
 
   async function handleSubmit(action: "send_now" | "schedule") {
     setSubmitting(action);
@@ -108,7 +134,7 @@ export function ComposeClient() {
       format: "notification",
       action,
       ...(action === "schedule"
-        ? { scheduledAt: normalizedScheduleTimes.map((time) => new Date(time).toISOString()) }
+        ? { scheduledAt: scheduledPakistanIsoTimes }
         : {}),
       notificationTitle,
       notificationBody,
@@ -284,29 +310,84 @@ export function ComposeClient() {
               </label>
 
               {scheduleEnabled && (
-                <div className="mt-3 space-y-2">
-                  {scheduleTimes.map((time, index) => (
-                    <div key={`schedule-${index}`} className="flex items-center gap-2">
-                      <Input
-                        type="datetime-local"
-                        value={time}
-                        onChange={(e) => {
-                          const next = [...scheduleTimes];
-                          next[index] = e.target.value;
-                          setScheduleTimes(next);
-                        }}
-                      />
-                      {scheduleTimes.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setScheduleTimes((prev) => prev.filter((_, i) => i !== index))}
-                          className="text-xs text-ink2 hover:text-danger"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-lg border border-border bg-surface2/40 px-3 py-2 text-xs text-ink2">
+                    Pakistan Time (PKT, UTC+05:00) · 12-hour format
+                  </div>
+
+                  {scheduleTimes.map((time, index) => {
+                    const parsed = parseScheduleValue(time);
+                    return (
+                      <div key={`schedule-${index}`} className="space-y-2 rounded-lg border border-border p-3">
+                        <div className="grid grid-cols-[1.25fr_0.8fr_0.8fr_0.8fr] gap-2">
+                          <Input
+                            type="date"
+                            value={parsed.date}
+                            onChange={(e) => {
+                              const next = [...scheduleTimes];
+                              next[index] = buildScheduleValue(e.target.value, parsed.hour, parsed.minute, parsed.period);
+                              setScheduleTimes(next);
+                            }}
+                            aria-label="Schedule date"
+                          />
+                          <Select
+                            value={parsed.hour}
+                            onChange={(e) => {
+                              const next = [...scheduleTimes];
+                              next[index] = buildScheduleValue(parsed.date, e.target.value, parsed.minute, parsed.period);
+                              setScheduleTimes(next);
+                            }}
+                            aria-label="Schedule hour"
+                          >
+                            <option value="">Hour</option>
+                            {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((hour) => (
+                              <option key={hour} value={hour}>{hour}</option>
+                            ))}
+                          </Select>
+                          <Select
+                            value={parsed.minute}
+                            onChange={(e) => {
+                              const next = [...scheduleTimes];
+                              next[index] = buildScheduleValue(parsed.date, parsed.hour, e.target.value, parsed.period);
+                              setScheduleTimes(next);
+                            }}
+                            aria-label="Schedule minute"
+                          >
+                            {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((minute) => (
+                              <option key={minute} value={minute}>{minute}</option>
+                            ))}
+                          </Select>
+                          <Select
+                            value={parsed.period}
+                            onChange={(e) => {
+                              const next = [...scheduleTimes];
+                              next[index] = buildScheduleValue(parsed.date, parsed.hour, parsed.minute, e.target.value);
+                              setScheduleTimes(next);
+                            }}
+                            aria-label="AM or PM"
+                          >
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                          </Select>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-ink2">
+                            {time ? `PKT: ${time}` : "Select date and time"}
+                          </span>
+                          {scheduleTimes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setScheduleTimes((prev) => prev.filter((_, i) => i !== index))}
+                              className="text-xs text-ink2 hover:text-danger"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
 
                   <button
                     type="button"
