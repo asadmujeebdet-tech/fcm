@@ -215,7 +215,6 @@ function AppFormModal({
 }) {
   const [name, setName] = useState("");
   const [defaultTopic, setDefaultTopic] = useState("");
-  const [packageName, setPackageName] = useState("");
   const [appIconUrl, setAppIconUrl] = useState("");
   const [serviceAccount, setServiceAccount] = useState("");
   const [saving, setSaving] = useState(false);
@@ -226,13 +225,11 @@ function AppFormModal({
     if (editingApp) {
       setName(editingApp.name);
       setDefaultTopic(editingApp.default_topic ?? "");
-      setPackageName(editingApp.package_name ?? "");
       setAppIconUrl(editingApp.app_icon_url ?? "");
       setIsActive(editingApp.is_active);
     } else {
       setName("");
       setDefaultTopic("");
-      setPackageName("");
       setAppIconUrl("");
       setServiceAccount("");
       setIsActive(true);
@@ -255,12 +252,12 @@ function AppFormModal({
       ? await fetch(`/api/apps/${editingApp.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, defaultTopic, packageName, appIconUrl, isActive }),
+          body: JSON.stringify({ name, defaultTopic, appIconUrl, isActive }),
         })
       : await fetch("/api/apps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, defaultTopic, packageName, appIconUrl, serviceAccount, isActive }),
+          body: JSON.stringify({ name, defaultTopic, appIconUrl, serviceAccount, isActive }),
         });
 
     const data = await res.json();
@@ -288,15 +285,6 @@ function AppFormModal({
             value={defaultTopic}
             onChange={(e) => setDefaultTopic(e.target.value)}
             placeholder="news"
-          />
-        </div>
-
-        <div>
-          <Label>Package name (optional)</Label>
-          <Input
-            value={packageName}
-            onChange={(e) => setPackageName(e.target.value)}
-            placeholder="com.example.app"
           />
         </div>
 
