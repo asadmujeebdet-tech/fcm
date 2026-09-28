@@ -1486,3 +1486,70 @@ body {
 .schedule-calendar-button { position:absolute; right:0; top:0; width:38px; height:42px; display:flex; align-items:center; justify-content:center; color:#AAB3C5; background:transparent; border:0; cursor:pointer; }
 .schedule-time-input { flex:0 0 132px; width:132px; height:42px; border:1px solid #30394A; border-radius:9px; background:#121721; color:#EDEEF3; padding:0 11px; font-size:12px; font-weight:600; outline:none; }
 @media (max-width:420px) { .schedule-single-line { gap:6px; } .schedule-time-input { flex-basis:118px; width:118px; } }
+
+
+/* Compact Compose time control: editable hh:mm with AM/PM spinner */
+.schedule-time-control {
+  flex: 0 0 150px;
+  width: 150px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #30394A;
+  border-radius: 9px;
+  background: #121721;
+  overflow: hidden;
+}
+.schedule-time-control:focus-within {
+  border-color: #4D7CFE;
+  box-shadow: 0 0 0 3px rgba(77,124,254,.08);
+}
+.schedule-time-input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: 40px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 9px !important;
+  color: #EDEEF3 !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  outline: none !important;
+  box-shadow: none !important;
+}
+.schedule-period-control {
+  width: 48px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  grid-template-rows: 15px 10px 15px;
+  align-items: center;
+  justify-items: center;
+  border-left: 1px solid #30394A;
+  color: #EDEEF3;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+.schedule-period-arrow {
+  width: 100%;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #6F7A8E;
+  cursor: pointer;
+  padding: 0;
+}
+.schedule-period-arrow:hover,
+.schedule-period-arrow.is-active {
+  color: #4D7CFE;
+  background: rgba(77,124,254,.08);
+}
+@media (max-width:420px) {
+  .schedule-time-control { flex-basis: 142px; width: 142px; }
+  .schedule-period-control { width: 45px; }
+}
