@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown, Minus } from "lucide-react";
+import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown, ChevronUp, Minus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea } from "@/components/ui/Field";
@@ -28,6 +28,7 @@ export function ComposeClient() {
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleTimes, setScheduleTimes] = useState<string[]>(["|||AM"]);
+  const [scheduleTimeDrafts, setScheduleTimeDrafts] = useState<Record<number, string>>({});
 
   function parseScheduleValue(value: string) {
     const parts = value.split("|");
@@ -346,34 +347,60 @@ export function ComposeClient() {
                               <Calendar size={15} />
                             </button>
                           </div>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={parsed.hour ? `${parsed.hour.padStart(2, "0")}:${parsed.minute} ${parsed.period}` : ""}
-                            onChange={(e) => {
-                              const raw = e.target.value.toUpperCase();
-                              const match = raw.match(/^(\\d{0,2})(?::(\\d{0,2}))?\\s*(AM|PM)?$/);
-                              if (!match) return;
-                              const next = [...scheduleTimes];
-                              next[index] = buildScheduleValue(parsed.date, match[1] || "", match[2] || "00", match[3] || parsed.period);
-                              setScheduleTimes(next);
-                            }}
-                            onBlur={() => {
-                              if (!parsed.hour) return;
-                              const next = [...scheduleTimes];
-                              next[index] = buildScheduleValue(
-                                parsed.date,
-                                String(Math.min(12, Math.max(1, Number(parsed.hour) || 12))),
-                                String(Math.min(59, Math.max(0, Number(parsed.minute) || 0))).padStart(2, "0"),
-                                parsed.period
-                              );
-                              setScheduleTimes(next);
-                            }}
-                            placeholder="hh:mm AM/PM"
-                            aria-label="Schedule time"
-                            className="schedule-time-input"
-                          />
-                        </div>
+                          <div className="schedule-time-control">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={scheduleTimeDrafts[index] ?? (parsed.hour ? `${parsed.hour.padStart(2, "0")}:${parsed.minute}` : "")}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9:]/g, "").slice(0, 5);
+                                setScheduleTimeDrafts((prev) => ({ ...prev, [index]: raw }));
+                              }}
+                              onBlur={() => {
+                                const raw = (scheduleTimeDrafts[index] ?? "").trim();
+                                const match = raw.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+                                if (!match) return;
+                                const hour = Math.min(12, Math.max(1, Number(match[1]) || 12));
+                                const minute = Math.min(59, Math.max(0, Number(match[2] ?? 0))).toString().padStart(2, "0");
+                                const next = [...scheduleTimes];
+                                next[index] = buildScheduleValue(parsed.date, String(hour), minute, parsed.period);
+                                setScheduleTimes(next);
+                                setScheduleTimeDrafts((prev) => ({ ...prev, [index]: `${String(hour).padStart(2, "0")}:${minute}` }));
+                              }}
+                              placeholder="hh:mm"
+                              aria-label="Schedule time"
+                              className="schedule-time-input"
+                            />
+                            <div className="schedule-period-control" aria-label="AM or PM">
+                              <button
+                                type="button"
+                                className={`schedule-period-arrow${parsed.period === "AM" ? " is-active" : ""}`}
+                                onClick={() => {
+                                  const next = [...scheduleTimes];
+                                  next[index] = buildScheduleValue(parsed.date, parsed.hour, parsed.minute, "AM");
+                                  setScheduleTimes(next);
+                                }}
+                                aria-label="Set AM"
+                                title="AM"
+                              >
+                                <ChevronUp size={12} />
+                              </button>
+                              <span>{parsed.period}</span>
+                              <button
+                                type="button"
+                                className={`schedule-period-arrow${parsed.period === "PM" ? " is-active" : ""}`}
+                                onClick={() => {
+                                  const next = [...scheduleTimes];
+                                  next[index] = buildScheduleValue(parsed.date, parsed.hour, parsed.minute, "PM");
+                                  setScheduleTimes(next);
+                                }}
+                                aria-label="Set PM"
+                                title="PM"
+                              >
+                                <ChevronDown size={12} />
+                              </button>
+                            </div>
+                          </div>                        </div>
 
                         <div className="flex items-center justify-end gap-2">
 {scheduleTimes.length > 1 && (
@@ -392,7 +419,7 @@ export function ComposeClient() {
 
                   <button
                     type="button"
-                    onClick={() => setScheduleTimes((prev) => [...prev, "|||AM"])}
+                    onClick={() => { setScheduleTimes((prev) => [...prev, "|||AM"]); setScheduleTimeDrafts((prev) => ({ ...prev, [scheduleTimes.length]: "" })); }}
                     className="text-xs text-signal hover:underline"
                   >
                     + Add another time
