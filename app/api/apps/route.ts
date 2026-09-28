@@ -5,7 +5,7 @@ import { getCurrentUserId } from "@/lib/current-user";
 import { encrypt } from "@/lib/encryption";
 
 export const runtime="nodejs";
-const createAppSchema=z.object({name:z.string().min(1),defaultTopic:z.string().default(""),appIconUrl:z.string().url().or(z.literal("")).optional(),serviceAccount:z.string().min(1),isActive:z.boolean().default(true)});
+const createAppSchema=z.object({name:z.string().min(1),topic:z.string().default(""),appIconUrl:z.string().url().or(z.literal("")).optional(),serviceAccount:z.string().min(1),isActive:z.boolean().default(true)});
 const publicColumns="id,user_id,name,project_id,app_icon_url,default_topic,is_active,created_at,updated_at";
 
 export async function GET(){
@@ -24,7 +24,7 @@ export async function POST(req:NextRequest){
  try{
   const r=await query(`INSERT INTO public.firebase_apps (user_id,name,project_id,app_icon_url,default_topic,is_active,service_account_encrypted,encryption_iv,encryption_tag)
    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${publicColumns}`,
-   [userId,parsed.data.name,projectId,parsed.data.appIconUrl||null,parsed.data.defaultTopic||"",parsed.data.isActive,ciphertext,iv,tag]);
+   [userId,parsed.data.name,projectId,parsed.data.appIconUrl||null,parsed.data.topic||"",parsed.data.isActive,ciphertext,iv,tag]);
   return NextResponse.json({app:r.rows[0]},{status:201});
  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
