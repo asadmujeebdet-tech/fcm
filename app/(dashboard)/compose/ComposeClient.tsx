@@ -128,10 +128,37 @@ export function ComposeClient() {
     .map(scheduleValueToPakistanIso)
     .filter(Boolean);
 
+  const payloadSizes = useMemo(() => {
+    const encoder = new TextEncoder();
+    return selectedApps.map((app) => {
+      const payload = {
+        message: {
+          topic: app.topic?.trim() ?? "",
+          notification: {
+            title: notificationTitle ?? "",
+            body: notificationBody ?? "",
+            ...(notificationImage.trim() ? { image: notificationImage.trim() } : {}),
+          },
+        },
+      };
+      return {
+        appId: app.id,
+        appName: app.name,
+        bytes: encoder.encode(JSON.stringify(payload)).byteLength,
+      };
+    });
+  }, [selectedApps, notificationTitle, notificationBody, notificationImage]);
+
+  const maxPayloadSize = payloadSizes.length
+    ? Math.max(...payloadSizes.map((item) => item.bytes))
+    : 0;
+  const payloadTooLarge = maxPayloadSize > 2048;
+
   const canSubmit =
     selectedAppIds.size > 0 &&
     notificationTitle.trim() &&
     notificationBody.trim() &&
+    !payloadTooLarge &&
     (!scheduleEnabled || scheduledPakistanIsoTimes.length > 0);
 
   async function handleSubmit(action: "send_now" | "schedule") {
@@ -222,6 +249,18 @@ export function ComposeClient() {
                 placeholder="https://..."
               />
             </div>
+
+            <div className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${payloadTooLarge ? "border-danger/40 bg-danger/5" : "border-border bg-surface2/40"}`}>
+              <span className="text-ink2">FCM payload size</span>
+              <span className={payloadTooLarge ? "font-medium text-danger" : "font-medium text-ink"}>
+                {maxPayloadSize.toLocaleString()} / 2,048 bytes
+              </span>
+            </div>
+            {payloadTooLarge && (
+              <p className="text-xs text-danger">
+                Payload is too large for topic messaging. Reduce the title, body, or image URL before sending.
+              </p>
+            )}
           </Card>
 
           <div className="space-y-6">
