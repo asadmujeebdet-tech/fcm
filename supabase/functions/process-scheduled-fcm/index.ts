@@ -97,6 +97,7 @@ async function getAccessToken(serviceAccount: {
     .sign(privateKey);
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
+    signal: AbortSignal.timeout(20000),
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -137,6 +138,7 @@ async function sendToFirebase(
   const response = await fetch(
     `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(app.project_id)}/messages:send`,
     {
+      signal: AbortSignal.timeout(30000),
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
