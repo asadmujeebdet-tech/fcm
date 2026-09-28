@@ -114,7 +114,13 @@ async function getAccessToken(serviceAccount: {
   return data.access_token as string;
 }
 
-const MAX_TOPIC_PAYLOAD_BYTES = 2048;\n\nfunction getPayloadSizeBytes(payload: unknown): number {\n  return new TextEncoder().encode(JSON.stringify(payload)).byteLength;\n}\n\nfunction buildMessage(message: Message, topic: string) {
+const MAX_TOPIC_PAYLOAD_BYTES = 2048;
+
+function getPayloadSizeBytes(payload: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(payload)).byteLength;
+}
+
+function buildMessage(message: Message, topic: string) {
   return {
     message: {
       topic,
@@ -132,7 +138,15 @@ async function sendToFirebase(
   app: FirebaseApp,
   topic: string,
 ) {
-  const payload = buildMessage(message, topic);\n  const payloadBytes = getPayloadSizeBytes(payload);\n  if (payloadBytes > MAX_TOPIC_PAYLOAD_BYTES) {\n    throw new Error(`FCM payload is too large: ${payloadBytes} bytes. Maximum for topic messages is ${MAX_TOPIC_PAYLOAD_BYTES} bytes.`);\n  }\n\n  const serviceAccount = await decryptServiceAccount(app);
+  const payload = buildMessage(message, topic);
+  const payloadBytes = getPayloadSizeBytes(payload);
+  if (payloadBytes > MAX_TOPIC_PAYLOAD_BYTES) {
+    throw new Error(
+      `FCM payload is too large: ${payloadBytes} bytes. Maximum for topic messages is ${MAX_TOPIC_PAYLOAD_BYTES} bytes.`,
+    );
+  }
+
+  const serviceAccount = await decryptServiceAccount(app);
   const accessToken = await getAccessToken(serviceAccount);
 
   const response = await fetch(
