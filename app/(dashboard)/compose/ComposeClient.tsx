@@ -26,9 +26,18 @@ export function ComposeClient() {
   const [showLivePreview, setShowLivePreview] = useState(false);
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
-  const [scheduleTimes, setScheduleTimes] = useState<string[]>([""]);
+  const [scheduleTimes, setScheduleTimes] = useState<string[]>(["|||AM"]);
 
   function parseScheduleValue(value: string) {
+    const parts = value.split("|");
+    if (parts.length === 4) {
+      return {
+        date: parts[0],
+        hour: parts[1],
+        minute: parts[2] || "00",
+        period: (parts[3] === "PM" ? "PM" : "AM") as "AM" | "PM",
+      };
+    }
     const match = value.match(/^(\d{4}-\d{2}-\d{2}) (\d{1,2}):(\d{2}) (AM|PM)$/);
     return match
       ? { date: match[1], hour: match[2], minute: match[3], period: match[4] as "AM" | "PM" }
@@ -36,8 +45,7 @@ export function ComposeClient() {
   }
 
   function buildScheduleValue(date: string, hour: string, minute: string, period: string) {
-    if (!date || !hour || !minute || !period) return "";
-    return `${date} ${hour}:${minute} ${period}`;
+    return [date, hour, minute || "00", period || "AM"].join("|");
   }
 
   function scheduleValueToPakistanIso(value: string) {
@@ -311,15 +319,11 @@ export function ComposeClient() {
 
               {scheduleEnabled && (
                 <div className="mt-3 space-y-3">
-                  <div className="rounded-lg border border-border bg-surface2/40 px-3 py-2 text-xs text-ink2">
-                    Pakistan Time (PKT, UTC+05:00) · 12-hour format
-                  </div>
-
-                  {scheduleTimes.map((time, index) => {
+{scheduleTimes.map((time, index) => {
                     const parsed = parseScheduleValue(time);
                     return (
                       <div key={`schedule-${index}`} className="space-y-2 rounded-lg border border-border p-3">
-                        <div className="grid grid-cols-[1.25fr_0.8fr_0.8fr_0.8fr] gap-2">
+                        <div className="schedule-time-grid">
                           <Input
                             type="date"
                             value={parsed.date}
@@ -373,7 +377,7 @@ export function ComposeClient() {
 
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-[11px] text-ink2">
-                            {time ? `PKT: ${time}` : "Select date and time"}
+                            {parsed.date && parsed.hour ? `PKT: ${parsed.date} ${parsed.hour}:${parsed.minute} ${parsed.period}` : "Select date and time"}
                           </span>
                           {scheduleTimes.length > 1 && (
                             <button
@@ -391,7 +395,7 @@ export function ComposeClient() {
 
                   <button
                     type="button"
-                    onClick={() => setScheduleTimes((prev) => [...prev, ""])}
+                    onClick={() => setScheduleTimes((prev) => [...prev, "|||AM"])}
                     className="text-xs text-signal hover:underline"
                   >
                     + Add another time
