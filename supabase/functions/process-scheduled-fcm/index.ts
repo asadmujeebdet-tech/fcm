@@ -4,7 +4,7 @@ import { importPKCS8, SignJWT } from "npm:jose@4.15.9";
 type FirebaseApp = {
   id: string;
   project_id: string;
-  default_topic: string;
+  topic: string;
   service_account_encrypted: string;
   encryption_iv: string;
   encryption_tag: string;
@@ -180,7 +180,7 @@ async function processMessage(
   if (appIds.length) {
     const { data, error } = await supabaseAdmin
       .from("firebase_apps")
-      .select("id,project_id,default_topic,service_account_encrypted,encryption_iv,encryption_tag,is_active")
+      .select("id,project_id,topic,service_account_encrypted,encryption_iv,encryption_tag,is_active")
       .in("id", appIds);
 
     if (error) throw error;
@@ -211,7 +211,7 @@ async function processMessage(
     }
 
     try {
-      const topic = app.default_topic?.trim() || message.topic?.trim() || "all";
+      const topic = app.topic?.trim() || message.topic?.trim() || "all";
       const fcmMessageId = await sendToFirebase(message, app, topic);
 
       sent++;
