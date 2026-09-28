@@ -49,11 +49,6 @@ create table if not exists messages (
   sent_count            integer not null default 0,
   delivered             integer not null default 0,
   delivery_rate         numeric(5,2) not null default 0,
-  impressions           integer not null default 0,
-  opened                integer not null default 0,
-  open_rate             numeric(5,2) not null default 0,
-  dismissed             integer not null default 0,
-  dismiss_rate          numeric(5,2) not null default 0,
   delivery_failed       integer not null default 0,
 
   created_at            timestamptz not null default now(),
