@@ -7,8 +7,7 @@ export interface Message {
  id:string; user_id:string; topic:string;
  notification_title:string|null; notification_body:string|null; notification_image:string|null;
  status:MessageStatus; scheduled_at:string|null; sent_at:string|null;
- total_apps_targeted:number; total_sent:number; total_failed:number; sent_count:number; delivered:number; delivery_rate:number|null;
- impressions:number; opened:number; open_rate:number|null; dismissed:number; dismiss_rate:number|null; delivery_failed:number;
+ total_apps_targeted:number; total_sent:number; total_failed:number; sent_count:number; delivered:number; delivery_rate:number|null; delivery_failed:number;
  apps?:MessageApp[]; created_at:string; updated_at:string;
 }
 export interface MessageTarget { id:string; message_id:string; app_id:string; status:TargetStatus; fcm_message_id:string|null; error_message:string|null; sent_at:string|null; created_at:string; }
