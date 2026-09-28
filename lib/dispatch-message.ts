@@ -26,7 +26,7 @@ export async function dispatchMessage(message:Message):Promise<void>{
   try{
    const serviceAccount=JSON.parse(decrypt(app.service_account_encrypted,app.encryption_iv,app.encryption_tag));
    adminApp=admin.initializeApp({credential:admin.credential.cert(serviceAccount)},appName);
-   const topic=app.default_topic?.trim()||message.topic?.trim()||"all";
+   const topic=app.topic?.trim();
    const fcmMessageId=await admin.messaging(adminApp).send(buildFcmMessage(message,topic));
    sent++;
    await query("UPDATE public.message_targets SET status='sent',fcm_message_id=$2,sent_at=$3 WHERE id=$1",[target.id,fcmMessageId,new Date().toISOString()]);
