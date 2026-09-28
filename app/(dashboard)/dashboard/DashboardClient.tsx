@@ -49,16 +49,15 @@ export function DashboardClient() {
 
   const activeApps=apps.filter(a=>a.is_active).length;
   const totalSent=messages.reduce((s,m)=>s+(m.total_sent||m.sent_count||0),0);
-  const totalDelivered=messages.reduce((s,m)=>s+(m.delivered||m.total_sent||0),0);
+  const totalAccepted=messages.reduce((s,m)=>s+(m.total_sent||0),0);
   const totalFailed=messages.reduce((s,m)=>s+(m.delivery_failed||m.total_failed||0),0);
   const scheduledCount=messages.filter(m=>m.status==="scheduled").length;
-  const deliveryRate=totalSent+totalFailed===0?0:Math.round((totalDelivered/Math.max(1,totalSent+totalFailed))*100);
+  const acceptanceRate=totalSent+totalFailed===0?0:Math.round((totalAccepted/Math.max(1,totalSent+totalFailed))*100);
   const stats=[
     {label:"Connected apps",value:loading?"—":`${activeApps}/${apps.length}`,icon:BarChart3,tone:"signal"},
-    {label:"Sent",value:loading?"—":totalSent.toLocaleString(),icon:Send,tone:"wave"},
-    {label:"Delivered",value:loading?"—":totalDelivered.toLocaleString(),icon:CheckCheck,tone:"success"},
-    {label:"Delivery rate",value:loading?"—":`${deliveryRate}%`,icon:TrendingUp,tone:"signal"},
-    {label:"Delivery failed",value:loading?"—":totalFailed.toLocaleString(),icon:XCircle,tone:"danger"},
+    {label:"FCM accepted",value:loading?"—":totalAccepted.toLocaleString(),icon:CheckCheck,tone:"success"},
+    {label:"FCM acceptance rate",value:loading?"—":`${acceptanceRate}%`,icon:TrendingUp,tone:"signal"},
+    {label:"FCM failed",value:loading?"—":totalFailed.toLocaleString(),icon:XCircle,tone:"danger"},
     {label:"Scheduled",value:loading?"—":scheduledCount,icon:TimerReset,tone:"wave"},
   ];
 
