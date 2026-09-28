@@ -99,7 +99,7 @@ export function AppsClient() {
               <tr className="border-b border-border text-xs text-ink2">
                 <th className="w-[24%] px-5 py-3 font-normal">App</th>
                 <th className="w-[22%] px-5 py-3 font-normal">Project ID</th>
-                <th className="w-[24%] px-5 py-3 font-normal">Default topic</th>
+                <th className="w-[24%] px-5 py-3 font-normal">Topic</th>
                 <th className="w-[12%] px-5 py-3 font-normal">Status</th>
                 <th className="w-[18%] px-5 py-3 text-right font-normal">Actions</th>
               </tr>
@@ -122,7 +122,7 @@ export function AppsClient() {
                   <td className="px-5 py-3 font-mono text-xs text-ink2">{app.project_id}</td>
                   <td className="px-5 py-3">
                     <span className="block break-words font-mono text-xs text-ink2">
-                      {app.default_topic || "(none)"}
+                      {app.topic || "(none)"}
                     </span>
                   </td>
                   <td className="px-5 py-3">
@@ -214,7 +214,7 @@ function AppFormModal({
   onSaved: (message: string) => void;
 }) {
   const [name, setName] = useState("");
-  const [defaultTopic, setDefaultTopic] = useState("");
+  const [topic, setDefaultTopic] = useState("");
   const [appIconUrl, setAppIconUrl] = useState("");
   const [serviceAccount, setServiceAccount] = useState("");
   const [saving, setSaving] = useState(false);
@@ -224,7 +224,7 @@ function AppFormModal({
   useEffect(() => {
     if (editingApp) {
       setName(editingApp.name);
-      setDefaultTopic(editingApp.default_topic ?? "");
+      setDefaultTopic(editingApp.topic ?? "");
       setAppIconUrl(editingApp.app_icon_url ?? "");
       setIsActive(editingApp.is_active);
     } else {
@@ -252,12 +252,12 @@ function AppFormModal({
       ? await fetch(`/api/apps/${editingApp.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, defaultTopic, appIconUrl, isActive }),
+          body: JSON.stringify({ name, topic, appIconUrl, isActive }),
         })
       : await fetch("/api/apps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, defaultTopic, appIconUrl, serviceAccount, isActive }),
+          body: JSON.stringify({ name, topic, appIconUrl, serviceAccount, isActive }),
         });
 
     const data = await res.json();
@@ -280,9 +280,9 @@ function AppFormModal({
         </div>
 
         <div>
-          <Label>Default topic</Label>
+          <Label>Topic</Label>
           <Input
-            value={defaultTopic}
+            value={topic}
             onChange={(e) => setDefaultTopic(e.target.value)}
             placeholder="news"
           />
