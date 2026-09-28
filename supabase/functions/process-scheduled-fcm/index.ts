@@ -211,7 +211,8 @@ async function processMessage(
     }
 
     try {
-      const topic = app.topic?.trim() || message.topic?.trim() || "all";
+      const topic = app.topic?.trim();
+      if (!topic) throw new Error(`No topic configured for app ${app.name}.`);
       const fcmMessageId = await sendToFirebase(message, app, topic);
 
       sent++;
