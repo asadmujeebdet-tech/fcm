@@ -141,7 +141,7 @@ export function ComposeClient() {
 
     const body: Record<string, unknown> = {
       appIds: Array.from(selectedAppIds),
-      topic: selectedApps.find((app) => (app.default_topic ?? "").trim())?.default_topic?.trim() || "all",
+      topic: "",
       format: "notification",
       action,
       ...(action === "schedule"
