@@ -211,7 +211,7 @@ async function processMessage(
     }
 
     try {
-      const topic = message.topic?.trim() || app.default_topic?.trim() || "all";
+      const topic = app.default_topic?.trim() || message.topic?.trim() || "all";
       const fcmMessageId = await sendToFirebase(message, app, topic);
 
       sent++;
