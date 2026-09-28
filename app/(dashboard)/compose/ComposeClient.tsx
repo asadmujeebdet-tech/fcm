@@ -29,7 +29,7 @@ export function ComposeClient() {
   const [scheduleTimes, setScheduleTimes] = useState<string[]>([""]);
 
   function parseScheduleValue(value: string) {
-    const match = value.match(/^(\\d{4}-\\d{2}-\\d{2}) (\\d{1,2}):(\\d{2}) (AM|PM)$/);
+    const match = value.match(/^(\d{4}-\d{2}-\d{2}) (\d{1,2}):(\d{2}) (AM|PM)$/);
     return match
       ? { date: match[1], hour: match[2], minute: match[3], period: match[4] as "AM" | "PM" }
       : { date: "", hour: "", minute: "00", period: "AM" as const };
@@ -37,7 +37,7 @@ export function ComposeClient() {
 
   function buildScheduleValue(date: string, hour: string, minute: string, period: string) {
     if (!date || !hour || !minute || !period) return "";
-    return \`\${date} \${hour}:\${minute} \${period}\`;
+    return `${date} ${hour}:${minute} ${period}`;
   }
 
   function scheduleValueToPakistanIso(value: string) {
@@ -47,7 +47,7 @@ export function ComposeClient() {
     if (parsed.period === "AM") hour = hour === 12 ? 0 : hour;
     else hour = hour === 12 ? 12 : hour + 12;
     const hh = String(hour).padStart(2, "0");
-    return \`\${parsed.date}T\${hh}:\${parsed.minute}:00+05:00\`;
+    return `${parsed.date}T${hh}:${parsed.minute}:00+05:00`;
   }
 
   const [submitting, setSubmitting] = useState<"send_now" | "schedule" | null>(null);
