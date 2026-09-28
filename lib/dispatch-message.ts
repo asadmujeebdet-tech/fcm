@@ -3,7 +3,7 @@ import { query } from "@/lib/db";
 import { decrypt } from "@/lib/encryption";
 import { FirebaseApp, Message } from "@/types/database";
 
-function buildFcmMessage(message:Message,topic:string):admin.messaging.Message{
+const MAX_TOPIC_PAYLOAD_BYTES = 2048;\n\nfunction getPayloadSizeBytes(payload: unknown): number {\n return new TextEncoder().encode(JSON.stringify(payload)).byteLength;\n}\n\nfunction buildFcmMessage(message:Message,topic:string):admin.messaging.Message{
  return{topic,notification:{title:message.notification_title??"",body:message.notification_body??"",...(message.notification_image?{imageUrl:message.notification_image}:{})}};
 }
 
