@@ -14,7 +14,6 @@ create table if not exists firebase_apps (
   -- Custom app login is used; user_id is an internal owner UUID, not Supabase Auth.
   name                      text not null,
   project_id                text not null,
-  package_name              text,
   app_icon_url              text,
   default_topic             text not null default '',
   service_account_encrypted text not null,
@@ -33,22 +32,11 @@ create index if not exists firebase_apps_user_id_idx on firebase_apps(user_id);
 create table if not exists messages (
   id                    uuid primary key default gen_random_uuid(),
   -- Custom app login is used; user_id is an internal owner UUID, not Supabase Auth.
-  format                text not null check (format in ('notification', 'data')),
   topic                 text not null default '',
 
-  -- used when format = 'notification'
   notification_title    text,
   notification_body     text,
   notification_image    text,
-
-  -- used when format = 'data' (matches a custom FirebaseMessagingService
-  -- that reads remoteMessage.data with these keys)
-  data_app_url          text,
-  data_title             text,
-  data_short_desc        text,
-  data_long_desc         text,
-  data_icon              text,
-  data_feature           text,
 
   status                text not null default 'draft'
                           check (status in ('draft', 'scheduled', 'sending', 'sent', 'partial_failure', 'failed', 'canceled')),
