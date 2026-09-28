@@ -19,6 +19,7 @@ export function ComposeClient() {
   const [appSearch, setAppSearch] = useState("");
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set());
   const appPickerRef = useRef<HTMLDivElement>(null);
+  const scheduleDateRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const [notificationTitle, setNotificationTitle] = useState("");
   const [notificationBody, setNotificationBody] = useState("");
@@ -323,63 +324,59 @@ export function ComposeClient() {
                     const parsed = parseScheduleValue(time);
                     return (
                       <div key={`schedule-${index}`} className="space-y-2 rounded-lg border border-border p-3">
-                        <div className="schedule-time-grid">
-                          <Input
-                            type="date"
-                            value={parsed.date}
+                        <div className="schedule-single-line">
+                          <div className="schedule-date-control">
+                            <input
+                              ref={(element) => { scheduleDateRefs.current[index] = element; }}
+                              type="date"
+                              value={parsed.date}
+                              onChange={(e) => {
+                                const next = [...scheduleTimes];
+                                next[index] = buildScheduleValue(e.target.value, parsed.hour, parsed.minute, parsed.period);
+                                setScheduleTimes(next);
+                              }}
+                              aria-label="Schedule date"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => scheduleDateRefs.current[index]?.showPicker?.()}
+                              aria-label="Open date picker"
+                              className="schedule-calendar-button"
+                            >
+                              <Calendar size={15} />
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={parsed.hour ? `${parsed.hour.padStart(2, "0")}:${parsed.minute} ${parsed.period}` : ""}
                             onChange={(e) => {
+                              const raw = e.target.value.toUpperCase();
+                              const match = raw.match(/^(\\d{0,2})(?::(\\d{0,2}))?\\s*(AM|PM)?$/);
+                              if (!match) return;
                               const next = [...scheduleTimes];
-                              next[index] = buildScheduleValue(e.target.value, parsed.hour, parsed.minute, parsed.period);
+                              next[index] = buildScheduleValue(parsed.date, match[1] || "", match[2] || "00", match[3] || parsed.period);
                               setScheduleTimes(next);
                             }}
-                            aria-label="Schedule date"
+                            onBlur={() => {
+                              if (!parsed.hour) return;
+                              const next = [...scheduleTimes];
+                              next[index] = buildScheduleValue(
+                                parsed.date,
+                                String(Math.min(12, Math.max(1, Number(parsed.hour) || 12))),
+                                String(Math.min(59, Math.max(0, Number(parsed.minute) || 0))).padStart(2, "0"),
+                                parsed.period
+                              );
+                              setScheduleTimes(next);
+                            }}
+                            placeholder="hh:mm AM/PM"
+                            aria-label="Schedule time"
+                            className="schedule-time-input"
                           />
-                          <Select
-                            value={parsed.hour}
-                            onChange={(e) => {
-                              const next = [...scheduleTimes];
-                              next[index] = buildScheduleValue(parsed.date, e.target.value, parsed.minute, parsed.period);
-                              setScheduleTimes(next);
-                            }}
-                            aria-label="Schedule hour"
-                          >
-                            <option value="">Hour</option>
-                            {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((hour) => (
-                              <option key={hour} value={hour}>{hour}</option>
-                            ))}
-                          </Select>
-                          <Select
-                            value={parsed.minute}
-                            onChange={(e) => {
-                              const next = [...scheduleTimes];
-                              next[index] = buildScheduleValue(parsed.date, parsed.hour, e.target.value, parsed.period);
-                              setScheduleTimes(next);
-                            }}
-                            aria-label="Schedule minute"
-                          >
-                            {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((minute) => (
-                              <option key={minute} value={minute}>{minute}</option>
-                            ))}
-                          </Select>
-                          <Select
-                            value={parsed.period}
-                            onChange={(e) => {
-                              const next = [...scheduleTimes];
-                              next[index] = buildScheduleValue(parsed.date, parsed.hour, parsed.minute, e.target.value);
-                              setScheduleTimes(next);
-                            }}
-                            aria-label="AM or PM"
-                          >
-                            <option value="AM">AM</option>
-                            <option value="PM">PM</option>
-                          </Select>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] text-ink2">
-                            {parsed.date && parsed.hour ? `PKT: ${parsed.date} ${parsed.hour}:${parsed.minute} ${parsed.period}` : "Select date and time"}
-                          </span>
-                          {scheduleTimes.length > 1 && (
+                        <div className="flex items-center justify-end gap-2">
+{scheduleTimes.length > 1 && (
                             <button
                               type="button"
                               onClick={() => setScheduleTimes((prev) => prev.filter((_, i) => i !== index))}
