@@ -135,7 +135,11 @@ export function ComposeClient() {
 
   const payloadSizes = useMemo(() => {
     const encoder = new TextEncoder();
-    return selectedApps.map((app) => {
+    const appsToMeasure = selectedApps.length
+      ? selectedApps
+      : [{ id: "", name: "", topic: "" } as FirebaseAppPublic];
+
+    return appsToMeasure.map((app) => {
       const payload = {
         message: {
           topic: app.topic?.trim() ?? "",
@@ -157,9 +161,7 @@ export function ComposeClient() {
     });
   }, [selectedApps, notificationTitle, notificationBody, notificationImage]);
 
-  const maxPayloadSize = payloadSizes.length
-    ? Math.max(...payloadSizes.map((item) => item.bytes))
-    : 0;
+  const maxPayloadSize = Math.max(...payloadSizes.map((item) => item.bytes));
   const payloadTooLarge = maxPayloadSize > 2048;
 
   const canSubmit =
@@ -268,7 +270,7 @@ export function ComposeClient() {
                   className={`text-[11px] font-medium ${payloadTooLarge ? "text-danger" : "text-ink2"}`}
                   aria-live="polite"
                 >
-                  {selectedApps.length ? `${maxPayloadSize.toLocaleString()} / 2,048 bytes` : "? / 2,048 bytes"}
+                  {maxPayloadSize.toLocaleString()} / 2,048 bytes
                 </span>
               </div>
               <Input
