@@ -138,7 +138,8 @@ NEXT_PUBLIC_EMAIL=admin@example.com
 
 DATABASE_URL=your-supabase-postgres-connection-string
 
-ENCRYPTION_SECRET_KEY=64-character-hex-string
+ENCRYPTION_SECRET_KEY=64-character-hex-string\n\n# n8n machine-to-machine API
+N8N_API_KEY=your-long-random-n8n-api-key
 ```
 
 > **Security:** `NEXT_PUBLIC_*` variables are compiled into the browser bundle and are
@@ -473,3 +474,4 @@ npm run start
 supabase functions deploy process-scheduled-fcm --project-ref YOUR_PROJECT_REF
 supabase secrets list
 ```
+\n\n## n8n integration\n\nThe FCM dashboard exposes a machine-to-machine endpoint for n8n:\n\n```text\nPOST /api/integrations/n8n/send\n```\n\nAuthenticate with:\n\n```http\nAuthorization: Bearer YOUR_N8N_API_KEY\nContent-Type: application/json\n```\n\nSet `N8N_API_KEY` as a server-side environment variable. Never expose it as a `NEXT_PUBLIC_*` variable or commit the real value.\n\n### Send immediately\n\n```json\n{\n  "appIds": ["APP_UUID_1", "APP_UUID_2"],\n  "title": "Weekend Offer",\n  "body": "Get your special offer today!",\n  "imageUrl": "https://example.com/banner.png",\n  "action": "send_now"\n}\n```\n\n### Schedule\n\n```json\n{\n  "appIds": ["APP_UUID_1", "APP_UUID_2"],\n  "title": "Good Morning!",\n  "body": "Start your day with our app.",\n  "imageUrl": "",\n  "action": "schedule",\n  "scheduledAt": "2026-09-30T09:00:00+05:00"\n}\n```\n\nThe n8n endpoint validates app ownership, creates the same `messages` and `message_targets` records used by the dashboard, and reuses the existing multi-app FCM dispatcher for immediate sends. Scheduled requests use the existing Supabase Cron + Edge Function scheduler.\n
