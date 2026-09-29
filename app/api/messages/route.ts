@@ -50,8 +50,10 @@ export async function POST(req:NextRequest){
     }
   }
   try{
-    const owned=await query<{id:string}>(`SELECT id FROM public.firebase_apps WHERE user_id=$1 AND id=ANY($2::uuid[])`,[userId,input.appIds]);
-    const ownedIds=new Set(owned.rows.map(a=>a.id)); const validAppIds=input.appIds.filter(id=>ownedIds.has(id));
+    const requestedAppIds=[...new Set(input.appIds)];
+    const owned=await query<{id:string}>(`SELECT id FROM public.firebase_apps WHERE user_id=$1 AND id=ANY($2::uuid[])`,[userId,requestedAppIds]);
+    const ownedIds=new Set(owned.rows.map(a=>a.id));
+    const validAppIds=requestedAppIds.filter(id=>ownedIds.has(id));
     if(!validAppIds.length)return NextResponse.json({error:"None of the selected apps are valid"},{status:400});
     const createMessage=async(status:"draft"|"scheduled",scheduledAt:string|null)=>{
       const r=await query<Message>(`INSERT INTO public.messages
