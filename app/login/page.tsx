@@ -7,23 +7,24 @@ import { Input, Label } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 
 const DEFAULT_EMAIL = process.env.NEXT_PUBLIC_EMAIL ?? "";
-const DEFAULT_PASSWORD = process.env.NEXT_PUBLIC_PASSWORD ?? "";
+// SECURITY: never prefill the password. NEXT_PUBLIC_* values are compiled into
+// the browser bundle, and /login is public, so anyone could read it.
 const WHATSAPP_ICON =
   "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS90_MbyAab03ginKOTiuz932RRf0tJmH-J7KzSxk65CQ&s=10";
 
 export default function LoginPage() {
   return (
     <Suspense>
-      <LoginForm defaultEmail={DEFAULT_EMAIL} defaultPassword={DEFAULT_PASSWORD} />
+      <LoginForm defaultEmail={DEFAULT_EMAIL} />
     </Suspense>
   );
 }
 
-function LoginForm({ defaultEmail, defaultPassword }: { defaultEmail: string; defaultPassword: string }) {
+function LoginForm({ defaultEmail }: { defaultEmail: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(defaultEmail);
-  const [password, setPassword] = useState(defaultPassword);
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
