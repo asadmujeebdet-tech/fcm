@@ -2,14 +2,25 @@ import { importPKCS8, SignJWT } from "jose";
 import { query } from "@/lib/db";
 import { decrypt } from "@/lib/encryption";
 import { FirebaseApp, Message } from "@/types/database";
+import {
+  getPayloadSizeBytes,
+  getRetryDelayMs,
+  isRetryableFcmStatus,
+  MAX_FCM_ATTEMPTS,
+  MAX_TOPIC_PAYLOAD_BYTES,
+  normalizeTopic,
+  parseRetryAfterMs,
+  sleep,
+} from "@/lib/fcm-utils";
 
-const MAX_TOPIC_PAYLOAD_BYTES = 2048;
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
-function getPayloadSizeBytes(payload: unknown): number {
-  return new TextEncoder().encode(JSON.stringify(payload)).byteLength;
-}
+type ServiceAccount = {
+  project_id: string;
+  client_email: string;
+  private_key: string;
+};
 
 function buildFcmPayload(message: Message, topic: string) {
   return {
@@ -26,10 +37,7 @@ function buildFcmPayload(message: Message, topic: string) {
   };
 }
 
-async function getAccessToken(serviceAccount: {
-  client_email: string;
-  private_key: string;
-}) {
+async function getAccessToken(serviceAccount: ServiceAccount): Promise<string> {
   const privateKey = await importPKCS8(
     serviceAccount.private_key.replace(/\\n/g, "\n"),
     "RS256",
@@ -45,7 +53,7 @@ async function getAccessToken(serviceAccount: {
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(20_000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
@@ -53,17 +61,23 @@ async function getAccessToken(serviceAccount: {
     }),
   });
 
-  const data = await response.json();
-  if (!response.ok || !data.access_token) {
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.access_token) {
     throw new Error(
-      data.error_description || data.error || "Unable to obtain Firebase access token.",
+      data?.error_description ||
+        data?.error ||
+        `Unable to obtain Firebase access token (HTTP ${response.status}).`,
     );
   }
 
   return data.access_token as string;
 }
 
-async function sendToFirebase(message: Message, app: FirebaseApp, topic: string) {
+async function sendToFirebase(
+  message: Message,
+  app: FirebaseApp,
+  topic: string,
+): Promise<string> {
   const payload = buildFcmPayload(message, topic);
   const payloadBytes = getPayloadSizeBytes(payload);
 
@@ -79,44 +93,108 @@ async function sendToFirebase(message: Message, app: FirebaseApp, topic: string)
       app.encryption_iv,
       app.encryption_tag,
     ),
-  ) as {
-    project_id: string;
-    client_email: string;
-    private_key: string;
-  };
+  ) as ServiceAccount;
 
-  const accessToken = await getAccessToken(serviceAccount);
-
-  const response = await fetch(
-    `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(
-      app.project_id || serviceAccount.project_id,
-    )}/messages:send`,
-    {
-      method: "POST",
-      signal: AbortSignal.timeout(30000),
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
+  if (serviceAccount.project_id !== app.project_id) {
     throw new Error(
-      data?.error?.message ||
-        data?.error?.status ||
-        "FCM request failed.",
+      `Firebase project mismatch for app ${app.name}: configured project does not match the service-account project.`,
     );
   }
 
-  if (!data?.name || typeof data.name !== "string") {
-    throw new Error("FCM accepted the request but returned no message ID.");
+  const accessToken = await getAccessToken(serviceAccount);
+  const endpoint =
+    `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(
+      app.project_id,
+    )}/messages:send`;
+
+  for (let attempt = 0; attempt < MAX_FCM_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        signal: AbortSignal.timeout(30_000),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (response.ok) {
+        if (!data?.name || typeof data.name !== "string") {
+          throw new Error("FCM accepted the request but returned no message ID.");
+        }
+
+        console.info(
+          `[BROADCAST] FCM accepted appId=${app.id} appName=${JSON.stringify(app.name)} projectId=${app.project_id} topic=${JSON.stringify(topic)} messageId=${data.name}`,
+        );
+        return data.name;
+      }
+
+      const retryable = isRetryableFcmStatus(response.status);
+      const errorMessage =
+        data?.error?.message ||
+        data?.error?.status ||
+        `FCM request failed with HTTP ${response.status}.`;
+
+      if (!retryable || attempt === MAX_FCM_ATTEMPTS - 1) {
+        throw new Error(
+          `FCM HTTP ${response.status}: ${errorMessage}`,
+        );
+      }
+
+      const retryAfterMs = parseRetryAfterMs(
+        response.headers.get("retry-after"),
+      );
+      const delayMs = getRetryDelayMs(attempt, retryAfterMs);
+
+      console.warn(
+        `[BROADCAST] RETRY appId=${app.id} attempt=${attempt + 1}/${MAX_FCM_ATTEMPTS} status=${response.status} delayMs=${delayMs}`,
+      );
+      await sleep(delayMs);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("FCM HTTP ")) {
+        throw error;
+      }
+
+      if (attempt === MAX_FCM_ATTEMPTS - 1) {
+        throw error instanceof Error
+          ? new Error(`FCM transport error: ${error.message}`)
+          : new Error("FCM transport error.");
+      }
+
+      const delayMs = getRetryDelayMs(attempt, null);
+      console.warn(
+        `[BROADCAST] RETRY appId=${app.id} attempt=${attempt + 1}/${MAX_FCM_ATTEMPTS} transportError=true delayMs=${delayMs}`,
+      );
+      await sleep(delayMs);
+    }
   }
 
-  return data.name as string;
+  throw new Error("FCM send failed after all retry attempts.");
+}
+
+async function markTarget(
+  targetId: string,
+  status: "sent" | "failed",
+  values: { fcmMessageId?: string; errorMessage?: string },
+) {
+  await query(
+    `UPDATE public.message_targets
+     SET status=$2,
+         fcm_message_id=$3,
+         error_message=$4,
+         sent_at=$5
+     WHERE id=$1`,
+    [
+      targetId,
+      status,
+      values.fcmMessageId ?? null,
+      values.errorMessage ?? null,
+      status === "sent" ? new Date().toISOString() : null,
+    ],
+  );
 }
 
 export async function dispatchMessage(message: Message): Promise<void> {
@@ -126,8 +204,10 @@ export async function dispatchMessage(message: Message): Promise<void> {
   );
 
   const targetsResult = await query<{ id: string; app_id: string }>(
-    `SELECT id,app_id FROM public.message_targets
-     WHERE message_id=$1 AND status='pending'`,
+    `SELECT id,app_id
+     FROM public.message_targets
+     WHERE message_id=$1 AND status='pending'
+     ORDER BY created_at ASC, id ASC`,
     [message.id],
   );
 
@@ -139,7 +219,7 @@ export async function dispatchMessage(message: Message): Promise<void> {
     return;
   }
 
-  const appIds = targetsResult.rows.map((target) => target.app_id);
+  const appIds = [...new Set(targetsResult.rows.map((target) => target.app_id))];
   const appsResult = await query<FirebaseApp>(
     "SELECT * FROM public.firebase_apps WHERE id=ANY($1::uuid[])",
     [appIds],
@@ -149,37 +229,78 @@ export async function dispatchMessage(message: Message): Promise<void> {
   let sent = 0;
   let failed = 0;
 
+  console.info(
+    `[BROADCAST] START messageId=${message.id} selectedApps=${targetsResult.rows.length}`,
+  );
+
   for (const target of targetsResult.rows) {
     const app = appsById.get(target.app_id);
 
-    if (!app || !app.is_active) {
+    if (!app) {
       failed++;
-      await query(
-        "UPDATE public.message_targets SET status='failed',error_message=$2 WHERE id=$1",
-        [target.id, !app ? "App not found" : "App is inactive"],
+      const errorMessage = "App not found.";
+      console.error(
+        `[BROADCAST] FAILED messageId=${message.id} appId=${target.app_id} reason=${errorMessage}`,
       );
+      await markTarget(target.id, "failed", { errorMessage });
       continue;
     }
 
-    try {
-      const topic = app.topic?.trim();
-      if (!topic) {
-        throw new Error(`No topic configured for app ${app.name}.`);
-      }
+    if (!app.is_active) {
+      failed++;
+      const errorMessage = "App is inactive.";
+      console.error(
+        `[BROADCAST] FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
+      );
+      await markTarget(target.id, "failed", { errorMessage });
+      continue;
+    }
 
+    const topic = normalizeTopic(app.topic);
+    if (!topic) {
+      failed++;
+      const errorMessage = `No topic configured for app ${app.name}.`;
+      console.error(
+        `[BROADCAST] FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
+      );
+      await markTarget(target.id, "failed", { errorMessage });
+      continue;
+    }
+
+    console.info(
+      `[BROADCAST] APP_START messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} projectId=${app.project_id} topic=${JSON.stringify(topic)}`,
+    );
+
+    try {
       const fcmMessageId = await sendToFirebase(message, app, topic);
       sent++;
+      await markTarget(target.id, "sent", { fcmMessageId });
 
       await query(
-        "UPDATE public.message_targets SET status='sent',fcm_message_id=$2,sent_at=$3,error_message=null WHERE id=$1",
-        [target.id, fcmMessageId, new Date().toISOString()],
+        "UPDATE public.messages SET updated_at=now() WHERE id=$1",
+        [message.id],
       );
-    } catch (err: any) {
+
+      console.info(
+        `[BROADCAST] APP_COMPLETE messageId=${message.id} appId=${app.id} result=accepted`,
+      );
+    } catch (error) {
       failed++;
-      await query(
-        "UPDATE public.message_targets SET status='failed',error_message=$2 WHERE id=$1",
-        [target.id, err?.message ?? "Unknown error"],
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown FCM error.";
+      console.error(
+        `[BROADCAST] APP_COMPLETE messageId=${message.id} appId=${app.id} result=failed error=${JSON.stringify(errorMessage)}`,
       );
+
+      try {
+        await markTarget(target.id, "failed", { errorMessage });
+      } catch (databaseError) {
+        console.error(
+          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${app.id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+        );
+      }
+
+      // Intentionally continue to the next selected app.
     }
   }
 
@@ -195,5 +316,9 @@ export async function dispatchMessage(message: Message): Promise<void> {
       sent,
       failed,
     ],
+  );
+
+  console.info(
+    `[BROADCAST] COMPLETE messageId=${message.id} apps=${targetsResult.rows.length} successfulApps=${sent} failedApps=${failed} status=${finalStatus}`,
   );
 }
