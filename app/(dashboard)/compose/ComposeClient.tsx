@@ -134,6 +134,13 @@ export function ComposeClient() {
     .filter(Boolean);
 
   const payloadSizes = useMemo(() => {
+    const hasMessageContent =
+      notificationTitle.trim().length > 0 ||
+      notificationBody.trim().length > 0 ||
+      notificationImage.trim().length > 0;
+
+    if (!hasMessageContent) return [{ appId: "", appName: "", bytes: 0 }];
+
     const encoder = new TextEncoder();
     const appsToMeasure = selectedApps.length
       ? selectedApps
