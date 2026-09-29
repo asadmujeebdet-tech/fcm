@@ -262,25 +262,21 @@ export function ComposeClient() {
             </div>
 
             <div>
-              <Label>Image URL (optional)</Label>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <Label>Image URL (optional)</Label>
+                <span
+                  className={`text-[11px] font-medium ${payloadTooLarge ? "text-danger" : "text-ink2"}`}
+                  aria-live="polite"
+                >
+                  {selectedApps.length ? `${maxPayloadSize.toLocaleString()} / 2,048 bytes` : "? / 2,048 bytes"}
+                </span>
+              </div>
               <Input
                 value={notificationImage}
                 onChange={(e) => setNotificationImage(e.target.value)}
                 placeholder="https://..."
               />
             </div>
-
-            <div className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${payloadTooLarge ? "border-danger/40 bg-danger/5" : "border-border bg-surface2/40"}`}>
-              <span className="text-ink2">FCM payload size</span>
-              <span className={payloadTooLarge ? "font-medium text-danger" : "font-medium text-ink"}>
-                {maxPayloadSize.toLocaleString()} / 2,048 bytes
-              </span>
-            </div>
-            {payloadTooLarge && (
-              <p className="text-xs text-danger">
-                Payload is too large for topic messaging. Reduce the title, body, or image URL before sending.
-              </p>
-            )}
           </Card>
 
           <div className="space-y-6">
