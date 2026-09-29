@@ -11,10 +11,7 @@ import { query } from "@/lib/db";
  * login email. This allows the first app to be created instead of returning
  * Unauthorized.
  */
-export async function getCurrentUserId(): Promise<string | null> {
-  const token = cookies().get(AUTH_COOKIE)?.value;
-  if (!(await isValidAuthToken(token))) return null;
-
+export async function getConfiguredOwnerId(): Promise<string | null> {
   try {
     const result = await query<{ user_id: string }>(`
       SELECT user_id
@@ -33,10 +30,16 @@ export async function getCurrentUserId(): Promise<string | null> {
     const email = process.env.EMAIL?.trim();
     if (!email) return null;
 
-    // UUID-shaped stable owner ID for the single configured dashboard account.
     const hash = createHash("sha256").update(`fcm-owner:${email}`).digest("hex");
     return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
   } catch {
     return null;
   }
+}
+
+export async function getCurrentUserId(): Promise<string | null> {
+  const token = cookies().get(AUTH_COOKIE)?.value;
+  if (!(await isValidAuthToken(token))) return null;
+
+  return getConfiguredOwnerId();
 }
