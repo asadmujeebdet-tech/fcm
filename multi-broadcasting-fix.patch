@@ -1,0 +1,1438 @@
+From 6e0368a2c8dad0bdef70076af7ca316fac194914 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 29 Sep 2026 06:01:58 +0000
+Subject: [PATCH 1/3] Sync package-lock.json with package.json
+
+pg and @types/pg were declared in package.json but missing from the lockfile,
+so 'npm ci' failed with EUSAGE on any host that uses it. Regenerated with
+'npm install'; the diff only adds pg and its dependencies.
+---
+ package-lock.json | 164 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 162 insertions(+), 2 deletions(-)
+
+diff --git a/package-lock.json b/package-lock.json
+index 26dbfe0..9e5487d 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -12,15 +12,17 @@
+         "@supabase/supabase-js": "^2.45.4",
+         "date-fns": "^3.6.0",
+         "firebase-admin": "^12.6.0",
++        "jose": "^4.15.9",
+         "lucide-react": "^0.446.0",
+         "next": "14.2.35",
++        "pg": "^8.16.3",
+         "react": "^18.3.1",
+         "react-dom": "^18.3.1",
+-        "zod": "^3.23.8",
+-        "jose": "^4.15.9"
++        "zod": "^3.23.8"
+       },
+       "devDependencies": {
+         "@types/node": "^20.14.0",
++        "@types/pg": "^8.15.5",
+         "@types/react": "^18.3.3",
+         "@types/react-dom": "^18.3.0",
+         "autoprefixer": "^10.4.19",
+@@ -765,6 +767,18 @@
+         "undici-types": "~6.21.0"
+       }
+     },
++    "node_modules/@types/pg": {
++      "version": "8.23.1",
++      "resolved": "https://registry.npmjs.org/@types/pg/-/pg-8.23.1.tgz",
++      "integrity": "sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/node": "*",
++        "pg-protocol": "*",
++        "pg-types": "^2.2.0"
++      }
++    },
+     "node_modules/@types/prop-types": {
+       "version": "15.7.15",
+       "resolved": "https://registry.npmjs.org/@types/prop-types/-/prop-types-15.7.15.tgz",
+@@ -2627,6 +2641,95 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/pg": {
++      "version": "8.23.0",
++      "resolved": "https://registry.npmjs.org/pg/-/pg-8.23.0.tgz",
++      "integrity": "sha512-Ip2EQCngowJLGOfCwkFhPXU7/ljlhn6Rxlmy4XYfL2Y+vyRM59+8uR2xqRWKdYmbXmxCFOAmKxBuSUCdF34qLg==",
++      "license": "MIT",
++      "dependencies": {
++        "pg-connection-string": "^2.14.0",
++        "pg-pool": "^3.14.0",
++        "pg-protocol": "^1.16.0",
++        "pg-types": "2.2.0",
++        "pgpass": "1.0.5"
++      },
++      "engines": {
++        "node": ">= 16.0.0"
++      },
++      "optionalDependencies": {
++        "pg-cloudflare": "^1.4.0"
++      },
++      "peerDependencies": {
++        "pg-native": ">=3.0.1"
++      },
++      "peerDependenciesMeta": {
++        "pg-native": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/pg-cloudflare": {
++      "version": "1.4.0",
++      "resolved": "https://registry.npmjs.org/pg-cloudflare/-/pg-cloudflare-1.4.0.tgz",
++      "integrity": "sha512-Vo7z/6rrQYxpNRylp4Tlob2elzbh+N/MOQbxFVWCxS7oEx6jF53GTJFxK2WWpKuBRkmiin4Mt+xofFDjx09R0A==",
++      "license": "MIT",
++      "optional": true
++    },
++    "node_modules/pg-connection-string": {
++      "version": "2.14.0",
++      "resolved": "https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.14.0.tgz",
++      "integrity": "sha512-XwWDGcLRGCXAR8F/AM5bG7Q+A3Wm2s6QeEjlOKZLlH3UYcguiqCWKyWXVag5TLTIjR7oOJUY8kcADaZgWPyLeg==",
++      "license": "MIT"
++    },
++    "node_modules/pg-int8": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz",
++      "integrity": "sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==",
++      "license": "ISC",
++      "engines": {
++        "node": ">=4.0.0"
++      }
++    },
++    "node_modules/pg-pool": {
++      "version": "3.14.0",
++      "resolved": "https://registry.npmjs.org/pg-pool/-/pg-pool-3.14.0.tgz",
++      "integrity": "sha512-gKtPkFdQPU3DksooVLi9LsjZxrsBUZIpa+7aVx+LV5pNh0KzP4Zleud2po+ConrxbuXGBJ6Hfer6hdgpIBpBaw==",
++      "license": "MIT",
++      "peerDependencies": {
++        "pg": ">=8.0"
++      }
++    },
++    "node_modules/pg-protocol": {
++      "version": "1.16.0",
++      "resolved": "https://registry.npmjs.org/pg-protocol/-/pg-protocol-1.16.0.tgz",
++      "integrity": "sha512-sILXutLVjCLjcDuOmvhX5e2Z4cS5qG/6Bu3VkpFwdf/633ElGLpEh9bgmuI5I4sqKqkifQiGyiCcx1HdtrK7tg==",
++      "license": "MIT"
++    },
++    "node_modules/pg-types": {
++      "version": "2.2.0",
++      "resolved": "https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz",
++      "integrity": "sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==",
++      "license": "MIT",
++      "dependencies": {
++        "pg-int8": "1.0.1",
++        "postgres-array": "~2.0.0",
++        "postgres-bytea": "~1.0.0",
++        "postgres-date": "~1.0.4",
++        "postgres-interval": "^1.1.0"
++      },
++      "engines": {
++        "node": ">=4"
++      }
++    },
++    "node_modules/pgpass": {
++      "version": "1.0.5",
++      "resolved": "https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz",
++      "integrity": "sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==",
++      "license": "MIT",
++      "dependencies": {
++        "split2": "^4.1.0"
++      }
++    },
+     "node_modules/picocolors": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+@@ -2819,6 +2922,45 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/postgres-array": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/postgres-array/-/postgres-array-2.0.0.tgz",
++      "integrity": "sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=4"
++      }
++    },
++    "node_modules/postgres-bytea": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/postgres-bytea/-/postgres-bytea-1.0.1.tgz",
++      "integrity": "sha512-5+5HqXnsZPE65IJZSMkZtURARZelel2oXUEO8rH83VS/hxH5vv1uHquPg5wZs8yMAfdv971IU+kcPUczi7NVBQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/postgres-date": {
++      "version": "1.0.7",
++      "resolved": "https://registry.npmjs.org/postgres-date/-/postgres-date-1.0.7.tgz",
++      "integrity": "sha512-suDmjLVQg78nMK2UZ454hAG+OAW+HQPZ6n++TNDUX+L0+uUlLywnoxJKDou51Zm+zTCjrCl0Nq6J9C5hP9vK/Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/postgres-interval": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/postgres-interval/-/postgres-interval-1.2.0.tgz",
++      "integrity": "sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==",
++      "license": "MIT",
++      "dependencies": {
++        "xtend": "^4.0.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/proto3-json-serializer": {
+       "version": "2.0.2",
+       "resolved": "https://registry.npmjs.org/proto3-json-serializer/-/proto3-json-serializer-2.0.2.tgz",
+@@ -3079,6 +3221,15 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/split2": {
++      "version": "4.2.0",
++      "resolved": "https://registry.npmjs.org/split2/-/split2-4.2.0.tgz",
++      "integrity": "sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==",
++      "license": "ISC",
++      "engines": {
++        "node": ">= 10.x"
++      }
++    },
+     "node_modules/stream-events": {
+       "version": "1.0.5",
+       "resolved": "https://registry.npmjs.org/stream-events/-/stream-events-1.0.5.tgz",
+@@ -3579,6 +3730,15 @@
+         "node": ">=16.0.0"
+       }
+     },
++    "node_modules/xtend": {
++      "version": "4.0.2",
++      "resolved": "https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz",
++      "integrity": "sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.4"
++      }
++    },
+     "node_modules/y18n": {
+       "version": "5.0.8",
+       "resolved": "https://registry.npmjs.org/y18n/-/y18n-5.0.8.tgz",
+-- 
+2.43.0
+
+
+From 0f7cce4174b087ce3912a1b8477a05652c1f7201 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 29 Sep 2026 06:01:58 +0000
+Subject: [PATCH 2/3] Stop exposing the dashboard password in the public login
+ bundle
+
+app/login/page.tsx is a client component that read NEXT_PUBLIC_PASSWORD and
+prefilled the password field. NEXT_PUBLIC_* values are compiled into the
+browser JavaScript and /login is public, so anyone could read the password
+from .next/static/chunks/app/login/page-*.js (verified by building with the
+variable set). The password is no longer prefilled.
+
+If NEXT_PUBLIC_PASSWORD was ever set in production: remove it, redeploy and
+change PASSWORD.
+---
+ app/login/page.tsx | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/app/login/page.tsx b/app/login/page.tsx
+index 2cdfe56..95327ee 100644
+--- a/app/login/page.tsx
++++ b/app/login/page.tsx
+@@ -7,23 +7,24 @@ import { Input, Label } from "@/components/ui/Field";
+ import { Button } from "@/components/ui/Button";
+ 
+ const DEFAULT_EMAIL = process.env.NEXT_PUBLIC_EMAIL ?? "";
+-const DEFAULT_PASSWORD = process.env.NEXT_PUBLIC_PASSWORD ?? "";
++// SECURITY: never prefill the password. NEXT_PUBLIC_* values are compiled into
++// the browser bundle, and /login is public, so anyone could read it.
+ const WHATSAPP_ICON =
+   "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS90_MbyAab03ginKOTiuz932RRf0tJmH-J7KzSxk65CQ&s=10";
+ 
+ export default function LoginPage() {
+   return (
+     <Suspense>
+-      <LoginForm defaultEmail={DEFAULT_EMAIL} defaultPassword={DEFAULT_PASSWORD} />
++      <LoginForm defaultEmail={DEFAULT_EMAIL} />
+     </Suspense>
+   );
+ }
+ 
+-function LoginForm({ defaultEmail, defaultPassword }: { defaultEmail: string; defaultPassword: string }) {
++function LoginForm({ defaultEmail }: { defaultEmail: string }) {
+   const router = useRouter();
+   const searchParams = useSearchParams();
+   const [email, setEmail] = useState(defaultEmail);
+-  const [password, setPassword] = useState(defaultPassword);
++  const [password, setPassword] = useState("");
+   const [showPassword, setShowPassword] = useState(false);
+   const [loading, setLoading] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+-- 
+2.43.0
+
+
+From c72919408f8a94e5592c616658244f8b4414d0cb Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 29 Sep 2026 06:01:58 +0000
+Subject: [PATCH 3/3] Harden multi-app broadcasting and recovery
+
+Database (new migration 20260929_harden_targets_and_recovery.sql, run it
+BEFORE deploying this code):
+- message_targets.app_id: ON DELETE CASCADE -> SET NULL, plus an app_name
+  snapshot. Deleting an app used to silently delete its target rows from past
+  broadcasts while messages.total_apps_targeted still counted them.
+- claim_scheduled_messages() now also recovers stuck 'send now' messages
+  (scheduled_at IS NULL); the old 'scheduled_at <= now()' guard was never
+  true for them, so they stayed in 'sending' forever.
+- schema.sql: add the user_id columns that its index and RLS policies already
+  referenced, so a fresh install works.
+
+API:
+- POST /api/messages rejects the request if any selected app is missing
+  instead of silently sending to a subset.
+- Message and all target rows are inserted in one transaction; scheduling
+  several times is all-or-nothing.
+- maxDuration = 60 for the send-now request.
+- Validate FCM topic names when saving an app.
+
+Dispatchers (Next.js and Edge Function):
+- Totals include targets resolved by an earlier run, so a resumed message no
+  longer reports only its second half.
+- A message with nothing processed is 'failed', not 'sent'.
+- Heartbeat updated_at before each target in both dispatchers.
+- Clear error for deleted apps and invalid topics.
+- Edge Function accepts CRON_SECRET or FCM_CRON_SECRET and returns a JSON 500
+  when neither is set.
+
+UI:
+- Compose no longer hangs on 'Sending...' when the server returns a non-JSON
+  error page; shows a 'may be partially sent, check History' message.
+- Wording: 'accepted by FCM' instead of 'delivered'.
+- Compose says how many inactive apps are hidden from the picker.
+- History shows each app's accepted / failed / pending state.
+
+Also: README env vars corrected (EMAIL/PASSWORD are server-side; do not use
+NEXT_PUBLIC_PASSWORD), migration order, and a troubleshooting section.
+Tests: topic validation and final-status resolution.
+---
+ README.md                                     |  47 +++-
+ app/(dashboard)/compose/ComposeClient.tsx     |  49 ++--
+ app/(dashboard)/history/HistoryClient.tsx     |   2 +-
+ app/api/apps/[id]/route.ts                    |   3 +-
+ app/api/apps/route.ts                         |   5 +-
+ app/api/messages/[id]/route.ts                |   2 +-
+ app/api/messages/route.ts                     |  33 ++-
+ lib/dispatch-message.ts                       | 176 ++++++++------
+ lib/fcm-utils.ts                              |  17 ++
+ .../functions/process-scheduled-fcm/index.ts  | 215 +++++++++++++-----
+ .../20260929_harden_targets_and_recovery.sql  |  70 ++++++
+ supabase/schema.sql                           |   7 +-
+ tests/fcm-utils.test.mjs                      |  19 ++
+ types/database.ts                             |   2 +-
+ 14 files changed, 482 insertions(+), 165 deletions(-)
+ create mode 100644 supabase/migrations/20260929_harden_targets_and_recovery.sql
+
+diff --git a/README.md b/README.md
+index 9282f21..b0bcaf4 100644
+--- a/README.md
++++ b/README.md
+@@ -100,12 +100,16 @@ supabase/schema.sql
+ 
+ Run it in Supabase SQL Editor if the project has not been initialized yet.
+ 
+-Then run:
++Then run, in order:
+ 
+ ```
+ supabase/migrations/20260927_fcm_scheduler.sql
++supabase/migrations/20260929_harden_targets_and_recovery.sql
+ ```
+ 
++**Run the second migration before deploying this version of the app.** The app now
++writes `message_targets.app_name`, which does not exist until the migration is applied.
++
+ This migration:
+ 
+ - enables `pg_cron`
+@@ -114,19 +118,34 @@ This migration:
+ - adds atomic scheduled-message claiming
+ - recovers stale `sending` jobs after 10 minutes
+ 
++The `20260929_harden_targets_and_recovery.sql` migration additionally:
++
++- changes `message_targets.app_id` from `ON DELETE CASCADE` to `ON DELETE SET NULL` and
++  stores an `app_name` snapshot, so deleting an app no longer erases it from past broadcasts
++- extends stale-job recovery to "Send now" messages that were killed mid-send
++
+ ## 2. Required Vercel / Next.js environment variables
+ 
+ Keep the existing application variables:
+ 
+ ```bash
++# Dashboard login. Server-side only: never prefix the password with NEXT_PUBLIC_.
++EMAIL=admin@example.com
++PASSWORD=your-login-password
++
++# Optional: prefill the email field on /login (the email is not secret).
+ NEXT_PUBLIC_EMAIL=admin@example.com
+-NEXT_PUBLIC_PASSWORD=your-login-password
+ 
+ DATABASE_URL=your-supabase-postgres-connection-string
+ 
+ ENCRYPTION_SECRET_KEY=64-character-hex-string
+ ```
+ 
++> **Security:** `NEXT_PUBLIC_*` variables are compiled into the browser bundle and are
++> readable by anyone who opens the site. Do **not** set `NEXT_PUBLIC_PASSWORD`. If you
++> ever did in production, remove it, redeploy, and change `PASSWORD` (it is also the
++> key that signs login sessions, so changing it signs everyone out).
++
+ Generate the encryption key with:
+ 
+ ```bash
+@@ -161,6 +180,9 @@ The Edge Function needs the same key because it decrypts the Firebase service-ac
+ 
+ ### FCM_CRON_SECRET
+ 
++The Edge Function accepts the secret under either name, `CRON_SECRET` or `FCM_CRON_SECRET`.
++Use one, and store the same value in the Vault entry `fcm_scheduler_cron_secret`.
++
+ Generate a separate random secret:
+ 
+ ```bash
+@@ -412,7 +434,26 @@ For debugging, also check:
+ 
+ **Supabase Dashboard → Edge Functions → process-scheduled-fcm → Logs**
+ 
+-## 13. Security
++## 13. Troubleshooting: "some apps did not get the notification"
++
++The History page shows one row per app. `accepted` means **Google's FCM API accepted the
++request**. It does not mean a device received it. FCM accepts a topic message even when
++nobody is subscribed to that topic, so an app can be `accepted` and still deliver nothing.
++
++If an app shows `accepted` but users get nothing:
++
++1. The app's stored **topic** must match, exactly and case-sensitively, the topic that
++   the mobile app passes to `subscribeToTopic(...)`.
++2. Send a test from **Firebase Console -> Messaging** to the same topic. If that also
++   fails, the problem is on the device or app side (not subscribed, notification
++   permission denied on Android 13+, or a missing APNs key for iOS), not in this dashboard.
++3. Confirm the app's service account belongs to the same Firebase project as the
++   mobile app (`project_id` on the Apps page).
++
++If an app shows `failed`, the reason is stored on the target and shown in History.
++Inactive apps are hidden from Compose; Compose tells you how many are hidden.
++
++## 14. Security
+ 
+ - Never commit Firebase service-account JSON.
+ - Never commit `SUPABASE_SERVICE_ROLE_KEY`.
+diff --git a/app/(dashboard)/compose/ComposeClient.tsx b/app/(dashboard)/compose/ComposeClient.tsx
+index e566f6b..f5f6e07 100644
+--- a/app/(dashboard)/compose/ComposeClient.tsx
++++ b/app/(dashboard)/compose/ComposeClient.tsx
+@@ -15,6 +15,8 @@ export function ComposeClient() {
+   const router = useRouter();
+   const [apps, setApps] = useState<FirebaseAppPublic[]>([]);
+   const [loadingApps, setLoadingApps] = useState(true);
++  const [inactiveAppCount, setInactiveAppCount] = useState(0);
++  const [appsLoadError, setAppsLoadError] = useState<string | null>(null);
+   const [appSearchOpen, setAppSearchOpen] = useState(false);
+   const [appSearch, setAppSearch] = useState("");
+   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set());
+@@ -69,10 +71,13 @@ export function ComposeClient() {
+     fetch("/api/apps")
+       .then((r) => r.json())
+       .then((data) => {
+-        const activeApps = (data.apps ?? []).filter((a: FirebaseAppPublic) => a.is_active);
++        const allApps: FirebaseAppPublic[] = data.apps ?? [];
++        const activeApps = allApps.filter((a) => a.is_active);
+         setApps(activeApps);
+-        setLoadingApps(false);
+-      });
++        setInactiveAppCount(allApps.length - activeApps.length);
++      })
++      .catch(() => setAppsLoadError("Could not load apps. Refresh the page."))
++      .finally(() => setLoadingApps(false));
+   }, []);
+ 
+   useEffect(() => {
+@@ -182,16 +187,28 @@ export function ComposeClient() {
+       notificationImage: notificationImage || undefined,
+     };
+ 
+-    const res = await fetch("/api/messages", {
+-      method: "POST",
+-      headers: { "Content-Type": "application/json" },
+-      body: JSON.stringify(body),
+-    });
+-    const data = await res.json();
++    let res: Response;
++    try {
++      res = await fetch("/api/messages", {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify(body),
++      });
++    } catch {
++      setSubmitting(null);
++      setError("Network error. The broadcast may have been partially sent. Check History before trying again.");
++      return;
++    }
++
++    // A platform timeout returns an HTML error page, not JSON.
++    const data = await res.json().catch(() => null);
+     setSubmitting(null);
+ 
+-    if (!res.ok) {
+-      setError(data.error ?? "Something went wrong");
++    if (!res.ok || !data) {
++      setError(
++        data?.error ??
++          `Server error (HTTP ${res.status}). Some apps may already have received this. Check History before sending again.`
++      );
+       return;
+     }
+ 
+@@ -202,9 +219,9 @@ export function ComposeClient() {
+         .map((target: { app_name?: string | null; error_message?: string | null }) => `${target.app_name || "Target app"}: ${target.error_message || "Unknown FCM error"}`)
+         .join(" | ");
+       if (m.total_failed > 0) {
+-        setSuccessMessage(`Sent — ${m.total_sent} delivered, ${m.total_failed} failed.${failedDetails ? ` Error: ${failedDetails}` : ""}`);
++        setSuccessMessage(`${m.total_sent} accepted by FCM, ${m.total_failed} failed.${failedDetails ? ` Error: ${failedDetails}` : ""}`);
+       } else {
+-        setSuccessMessage(`Sent — ${m.total_sent} delivered, ${m.total_failed} failed.`);
++        setSuccessMessage(`${m.total_sent} accepted by FCM, ${m.total_failed} failed. Devices receive it only if they are subscribed to the app's topic.`);
+       }
+     } else if (action === "schedule") {
+       setSuccessMessage("Scheduled.");
+@@ -345,6 +362,12 @@ export function ComposeClient() {
+                   </div>
+                 )}
+               </div>
++              {appsLoadError && <p className="mt-2 text-xs text-danger">{appsLoadError}</p>}
++              {inactiveAppCount > 0 && (
++                <p className="target-apps-subtitle mt-2">
++                  {inactiveAppCount} inactive app{inactiveAppCount === 1 ? " is" : "s are"} hidden. Activate {inactiveAppCount === 1 ? "it" : "them"} on the Apps page to include {inactiveAppCount === 1 ? "it" : "them"}.
++                </p>
++              )}
+             </Card>
+ 
+             <Card className="p-5">
+diff --git a/app/(dashboard)/history/HistoryClient.tsx b/app/(dashboard)/history/HistoryClient.tsx
+index 4812d0b..9d67f97 100644
+--- a/app/(dashboard)/history/HistoryClient.tsx
++++ b/app/(dashboard)/history/HistoryClient.tsx
+@@ -104,7 +104,7 @@ export function HistoryClient(){
+         <div className="rounded-xl bg-sky-500/10 p-1 transition-colors hover:bg-sky-500/15"><CopyField label="Body" value={body}/></div>
+       </div>
+       <div className="mt-5 border-t border-border pt-4"><div className="mb-3 flex items-center justify-between"><p className="text-xs font-medium text-white">Apps & delivery</p>{["draft","scheduled"].includes(selected.status)&&<button onClick={()=>cancelMessage(selected)} className="flex items-center gap-1 text-xs text-danger hover:underline"><Ban size={11}/> Cancel</button>}</div>
+-      {loadingTargets?<p className="text-xs text-ink2">Loading...</p>:<div className="space-y-2">{targets.map(t=><div key={t.id} className="rounded-lg border border-border p-3"><div className="flex min-w-0 items-center gap-2">{t.firebase_apps?.app_icon_url?<img src={t.firebase_apps.app_icon_url} alt="" className="h-7 w-7 rounded-md object-cover"/>:<div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface2 text-[9px] text-white">{t.firebase_apps?.name?.slice(0,1).toUpperCase()??"?"}</div>}<span className="truncate text-xs text-white">{t.firebase_apps?.name??"Unknown app"}</span></div>{t.error_message&&<p className="mt-1 text-xs text-danger">{t.error_message}</p>}</div>)}</div>}
++      {loadingTargets?<p className="text-xs text-ink2">Loading...</p>:<div className="space-y-2">{targets.map(t=><div key={t.id} className="rounded-lg border border-border p-3"><div className="flex min-w-0 items-center gap-2">{t.firebase_apps?.app_icon_url?<img src={t.firebase_apps.app_icon_url} alt="" className="h-7 w-7 rounded-md object-cover"/>:<div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface2 text-[9px] text-white">{t.firebase_apps?.name?.slice(0,1).toUpperCase()??"?"}</div>}<span className="truncate text-xs text-white">{t.firebase_apps?.name??"Unknown app"}</span><span className={`ml-auto shrink-0 text-[10px] font-semibold uppercase tracking-wide ${t.status==="failed"?"text-danger":"text-ink2"}`}>{t.status==="sent"?"accepted":t.status}</span></div>{t.error_message&&<p className="mt-1 text-xs text-danger">{t.error_message}</p>}</div>)}</div>}
+       </div>
+     </Card>}
+    </div>
+diff --git a/app/api/apps/[id]/route.ts b/app/api/apps/[id]/route.ts
+index a801c19..4b4cdd6 100644
+--- a/app/api/apps/[id]/route.ts
++++ b/app/api/apps/[id]/route.ts
+@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
+ import { z } from "zod";
+ import { query } from "@/lib/db";
+ import { getCurrentUserId } from "@/lib/current-user";
++import { isValidTopic, normalizeTopic } from "@/lib/fcm-utils";
+ export const runtime="nodejs";
+ const updateAppSchema=z.object({name:z.string().min(1).optional(),topic:z.string().optional(),appIconUrl:z.string().url().or(z.literal("")).optional(),isActive:z.boolean().optional()});
+ const publicColumns="id,user_id,name,project_id,app_icon_url,topic,is_active,created_at,updated_at";
+@@ -9,7 +10,7 @@ export async function PATCH(req:NextRequest,{params}:{params:{id:string}}){
+  const userId=await getCurrentUserId();if(!userId)return NextResponse.json({error:"Unauthorized"},{status:401});
+  const parsed=updateAppSchema.safeParse(await req.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0]?.message??"Invalid input"},{status:400});
+  const fields:string[]=[];const values:unknown[]=[];const add=(c:string,v:unknown)=>{fields.push(`${c}=$${values.length+1}`);values.push(v);};
+- if(parsed.data.name!==undefined)add("name",parsed.data.name);if(parsed.data.topic!==undefined)add("topic",parsed.data.topic||"");if(parsed.data.appIconUrl!==undefined)add("app_icon_url",parsed.data.appIconUrl||null);if(parsed.data.isActive!==undefined)add("is_active",parsed.data.isActive);
++ if(parsed.data.name!==undefined)add("name",parsed.data.name);if(parsed.data.topic!==undefined){const topic=normalizeTopic(parsed.data.topic);if(topic&&!isValidTopic(topic))return NextResponse.json({error:"Invalid topic. Topics may only contain letters, numbers and - _ . ~ %"},{status:400});add("topic",topic);}if(parsed.data.appIconUrl!==undefined)add("app_icon_url",parsed.data.appIconUrl||null);if(parsed.data.isActive!==undefined)add("is_active",parsed.data.isActive);
+  if(!fields.length)return NextResponse.json({error:"No changes supplied"},{status:400});values.push(params.id,userId);
+  try{const r=await query(`UPDATE public.firebase_apps SET ${fields.join(",")},updated_at=now() WHERE id=$${values.length-1} AND user_id=$${values.length} RETURNING ${publicColumns}`,values);if(!r.rows[0])return NextResponse.json({error:"Not found"},{status:404});return NextResponse.json({app:r.rows[0]});}
+  catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
+diff --git a/app/api/apps/route.ts b/app/api/apps/route.ts
+index d5f4f8b..2847369 100644
+--- a/app/api/apps/route.ts
++++ b/app/api/apps/route.ts
+@@ -3,6 +3,7 @@ import { z } from "zod";
+ import { query } from "@/lib/db";
+ import { getCurrentUserId } from "@/lib/current-user";
+ import { encrypt } from "@/lib/encryption";
++import { isValidTopic, normalizeTopic } from "@/lib/fcm-utils";
+ 
+ export const runtime="nodejs";
+ const createAppSchema=z.object({name:z.string().min(1),topic:z.string().default(""),appIconUrl:z.string().url().or(z.literal("")).optional(),serviceAccount:z.string().min(1),isActive:z.boolean().default(true)});
+@@ -16,6 +17,8 @@ export async function POST(req:NextRequest){
+  const userId=await getCurrentUserId(); if(!userId)return NextResponse.json({error:"Unauthorized"},{status:401});
+  const body=await req.json().catch(()=>null); const parsed=createAppSchema.safeParse(body);
+  if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0]?.message??"Invalid input"},{status:400});
++ const topic=normalizeTopic(parsed.data.topic);
++ if(topic&&!isValidTopic(topic))return NextResponse.json({error:"Invalid topic. Topics may only contain letters, numbers and - _ . ~ %"},{status:400});
+  let serviceAccountObj:any;
+  try{serviceAccountObj=JSON.parse(parsed.data.serviceAccount);}catch{return NextResponse.json({error:"serviceAccount is not valid JSON"},{status:400});}
+  const projectId=serviceAccountObj.project_id;
+@@ -24,7 +27,7 @@ export async function POST(req:NextRequest){
+  try{
+   const r=await query(`INSERT INTO public.firebase_apps (user_id,name,project_id,app_icon_url,topic,is_active,service_account_encrypted,encryption_iv,encryption_tag)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${publicColumns}`,
+-   [userId,parsed.data.name,projectId,parsed.data.appIconUrl||null,parsed.data.topic||"",parsed.data.isActive,ciphertext,iv,tag]);
++   [userId,parsed.data.name,projectId,parsed.data.appIconUrl||null,topic,parsed.data.isActive,ciphertext,iv,tag]);
+   return NextResponse.json({app:r.rows[0]},{status:201});
+  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
+ }
+\ No newline at end of file
+diff --git a/app/api/messages/[id]/route.ts b/app/api/messages/[id]/route.ts
+index 90814b6..d28b617 100644
+--- a/app/api/messages/[id]/route.ts
++++ b/app/api/messages/[id]/route.ts
+@@ -8,7 +8,7 @@ export async function GET(_req:NextRequest,{params}:{params:{id:string}}){
+  try{
+   const m=await query("SELECT * FROM public.messages WHERE id=$1 AND user_id=$2",[params.id,userId]);const message=m.rows[0];
+   if(!message)return NextResponse.json({error:"Not found"},{status:404});
+-  const t=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,fa.name AS app_name,fa.app_icon_url
++  const t=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,COALESCE(fa.name,mt.app_name) AS app_name,fa.app_icon_url
+     FROM public.message_targets mt LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
+     WHERE mt.message_id=$1 ORDER BY mt.created_at ASC`,[message.id]);
+   return NextResponse.json({message,targets:t.rows.map(row=>({...row,firebase_apps:row.app_name?{name:row.app_name,app_icon_url:row.app_icon_url}:null}))});
+diff --git a/app/api/messages/route.ts b/app/api/messages/route.ts
+index 968c662..8409782 100644
+--- a/app/api/messages/route.ts
++++ b/app/api/messages/route.ts
+@@ -1,11 +1,15 @@
+ import { NextRequest, NextResponse } from "next/server";
+ import { z } from "zod";
+-import { query } from "@/lib/db";
++import { query, withTransaction } from "@/lib/db";
+ import { getCurrentUserId } from "@/lib/current-user";
+ import { dispatchMessage } from "@/lib/dispatch-message";
++import type { PoolClient } from "pg";
+ import { Message } from "@/types/database";
+ 
+ export const runtime = "nodejs";
++// Send-now dispatches every selected app inside this request. Give it room on
++// hosts that honour it (Vercel); the scheduler covers anything that still dies.
++export const maxDuration = 60;
+ const baseSchema = z.object({
+   appIds:z.array(z.string().uuid()).min(1,"Select at least one app"), topic:z.string().default(""),
+   action:z.enum(["draft","send_now","schedule"]),
+@@ -18,8 +22,8 @@ export async function GET(){
+     const r=await query(`
+       SELECT m.*,
+         COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
+-          'id',fa.id,'name',fa.name,'app_icon_url',fa.app_icon_url
+-        )) FILTER (WHERE fa.id IS NOT NULL),'[]'::jsonb) AS apps
++          'id',COALESCE(mt.app_id,mt.id),'name',COALESCE(fa.name,mt.app_name,'Deleted app'),'app_icon_url',fa.app_icon_url
++        )) FILTER (WHERE mt.id IS NOT NULL),'[]'::jsonb) AS apps
+       FROM public.messages m
+       LEFT JOIN public.message_targets mt ON mt.message_id=m.id
+       LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
+@@ -54,25 +58,34 @@ export async function POST(req:NextRequest){
+     const owned=await query<{id:string}>(`SELECT id FROM public.firebase_apps WHERE user_id=$1 AND id=ANY($2::uuid[])`,[userId,requestedAppIds]);
+     const ownedIds=new Set(owned.rows.map(a=>a.id));
+     const validAppIds=requestedAppIds.filter(id=>ownedIds.has(id));
+-    if(!validAppIds.length)return NextResponse.json({error:"None of the selected apps are valid"},{status:400});
+-    const createMessage=async(status:"draft"|"scheduled",scheduledAt:string|null)=>{
+-      const r=await query<Message>(`INSERT INTO public.messages
++    // Never broadcast to a silent subset of what the user selected.
++    if(validAppIds.length!==requestedAppIds.length){
++      const missing=requestedAppIds.filter(id=>!ownedIds.has(id));
++      return NextResponse.json({error:`${missing.length} selected app(s) no longer exist or are not available. Refresh the page and select again. Nothing was sent.`,missingAppIds:missing},{status:400});
++    }
++    // Message row + all target rows are written atomically, so a failure can
++    // never leave a broadcast with missing targets.
++    const insertMessage=async(client:PoolClient,status:"draft"|"scheduled",scheduledAt:string|null)=>{
++      const r=await client.query<Message>(`INSERT INTO public.messages
+         (user_id,topic,notification_title,notification_body,notification_image,status,scheduled_at,total_apps_targeted)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,[
+           userId,input.topic||"",input.notificationTitle||null,input.notificationBody||null,input.notificationImage||null,
+           status,scheduledAt,validAppIds.length]);
+       const message=r.rows[0]; if(!message)throw new Error("Failed to create message");
+-      await query(`INSERT INTO public.message_targets(message_id,app_id) SELECT $1,unnest($2::uuid[])`,[message.id,validAppIds]);
++      const t=await client.query(`INSERT INTO public.message_targets(message_id,app_id,app_name)
++        SELECT $1,fa.id,fa.name FROM public.firebase_apps fa WHERE fa.id=ANY($2::uuid[])`,[message.id,validAppIds]);
++      if(t.rowCount!==validAppIds.length)throw new Error("Failed to create all message targets");
+       return message;
+     };
+     if(input.action==="send_now"){
+-      const message=await createMessage("draft",null); await dispatchMessage(message);
++      const message=await withTransaction(client=>insertMessage(client,"draft",null)); await dispatchMessage(message);
+       const final=await query<Message>("SELECT * FROM public.messages WHERE id=$1",[message.id]);
+-      const targets=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,fa.name AS app_name,fa.app_icon_url
++      const targets=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,COALESCE(fa.name,mt.app_name) AS app_name,fa.app_icon_url
+         FROM public.message_targets mt LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id WHERE mt.message_id=$1 ORDER BY mt.created_at ASC`,[message.id]);
+       return NextResponse.json({message:final.rows[0]??message,targets:targets.rows},{status:201});
+     }
+-    const insertedMessages:Message[]=[]; for(const scheduledIso of scheduleTimes)insertedMessages.push(await createMessage("scheduled",scheduledIso));
++    // All scheduled times succeed or none do.
++    const insertedMessages=await withTransaction(async client=>{const rows:Message[]=[];for(const scheduledIso of scheduleTimes)rows.push(await insertMessage(client,"scheduled",scheduledIso));return rows;});
+     return NextResponse.json({messages:insertedMessages},{status:201});
+   }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
+ }
+\ No newline at end of file
+diff --git a/lib/dispatch-message.ts b/lib/dispatch-message.ts
+index e8289a1..5495b34 100644
+--- a/lib/dispatch-message.ts
++++ b/lib/dispatch-message.ts
+@@ -6,10 +6,12 @@ import {
+   getPayloadSizeBytes,
+   getRetryDelayMs,
+   isRetryableFcmStatus,
++  isValidTopic,
+   MAX_FCM_ATTEMPTS,
+   MAX_TOPIC_PAYLOAD_BYTES,
+   normalizeTopic,
+   parseRetryAfterMs,
++  resolveMessageStatus,
+   sleep,
+ } from "@/lib/fcm-utils";
+ 
+@@ -212,91 +214,142 @@ async function markTarget(
+     : new Error("Unable to persist message target status.");
+ }
+ 
++type TargetRow = {
++  id: string;
++  app_id: string | null;
++  app_name: string | null;
++  status: "pending" | "sent" | "failed";
++};
++
++async function failTarget(
++  message: Message,
++  target: TargetRow,
++  app: FirebaseApp | undefined,
++  errorMessage: string,
++) {
++  console.error(
++    `[BROADCAST] FAILED messageId=${message.id} appId=${target.app_id} appName=${JSON.stringify(app?.name ?? target.app_name)} reason=${JSON.stringify(errorMessage)}`,
++  );
++  try {
++    await markTarget(target.id, "failed", { errorMessage });
++  } catch (databaseError) {
++    console.error(
++      `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
++    );
++  }
++}
++
++async function finalizeMessage(messageId: string, sent: number, failed: number) {
++  const finalStatus = resolveMessageStatus(sent, failed);
++  try {
++    await query(
++      "UPDATE public.messages SET status=$2,sent_at=$3,total_sent=$4,total_failed=$5,updated_at=now() WHERE id=$1",
++      [messageId, finalStatus, new Date().toISOString(), sent, failed],
++    );
++  } catch (databaseError) {
++    console.error(
++      `[BROADCAST] MESSAGE_STATUS_UPDATE_FAILED messageId=${messageId} fcmProcessingComplete=true error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
++    );
++  }
++  return finalStatus;
++}
++
+ export async function dispatchMessage(message: Message): Promise<void> {
+   await query(
+     "UPDATE public.messages SET status='sending',updated_at=now() WHERE id=$1",
+     [message.id],
+   );
+ 
+-  const targetsResult = await query<{ id: string; app_id: string }>(
+-    `SELECT id,app_id
++  const targetsResult = await query<TargetRow>(
++    `SELECT id,app_id,app_name,status
+      FROM public.message_targets
+-     WHERE message_id=$1 AND status='pending'
++     WHERE message_id=$1
+      ORDER BY created_at ASC, id ASC`,
+     [message.id],
+   );
+ 
+-  if (!targetsResult.rows.length) {
+-    await query(
+-      "UPDATE public.messages SET status='failed',updated_at=now() WHERE id=$1",
+-      [message.id],
++  // Totals include targets resolved by an earlier run (e.g. after a stale-job
++  // recovery), so a resumed message never reports only its second half.
++  const priorSent = targetsResult.rows.filter((t) => t.status === "sent").length;
++  const priorFailed = targetsResult.rows.filter((t) => t.status === "failed").length;
++  const pendingTargets = targetsResult.rows.filter((t) => t.status === "pending");
++
++  if (!pendingTargets.length) {
++    const status = await finalizeMessage(message.id, priorSent, priorFailed);
++    console.warn(
++      `[BROADCAST] NOTHING_PENDING messageId=${message.id} priorSent=${priorSent} priorFailed=${priorFailed} status=${status}`,
+     );
+     return;
+   }
+ 
+-  const appIds = [...new Set(targetsResult.rows.map((target) => target.app_id))];
+-  const appsResult = await query<FirebaseApp>(
+-    "SELECT * FROM public.firebase_apps WHERE id=ANY($1::uuid[])",
+-    [appIds],
+-  );
++  const appIds = [
++    ...new Set(
++      pendingTargets
++        .map((target) => target.app_id)
++        .filter((id): id is string => id !== null),
++    ),
++  ];
++  const appsResult = appIds.length
++    ? await query<FirebaseApp>(
++        "SELECT * FROM public.firebase_apps WHERE id=ANY($1::uuid[])",
++        [appIds],
++      )
++    : { rows: [] as FirebaseApp[] };
+   const appsById = new Map(appsResult.rows.map((app) => [app.id, app]));
+ 
+   let sent = 0;
+   let failed = 0;
+ 
+   console.info(
+-    `[BROADCAST] START messageId=${message.id} selectedApps=${targetsResult.rows.length}`,
++    `[BROADCAST] START messageId=${message.id} selectedApps=${pendingTargets.length} alreadySent=${priorSent} alreadyFailed=${priorFailed}`,
+   );
+ 
+-  for (const target of targetsResult.rows) {
+-    const app = appsById.get(target.app_id);
++  for (const target of pendingTargets) {
++    // Heartbeat: tells stale-job recovery this run is still alive.
++    try {
++      await query("UPDATE public.messages SET updated_at=now() WHERE id=$1", [message.id]);
++    } catch (databaseError) {
++      console.error(
++        `[BROADCAST] HEARTBEAT_FAILED messageId=${message.id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
++      );
++    }
++
++    const app = target.app_id ? appsById.get(target.app_id) : undefined;
+ 
+     if (!app) {
+       failed++;
+-      const errorMessage = "App not found.";
+-      console.error(
+-        `[BROADCAST] FAILED messageId=${message.id} appId=${target.app_id} reason=${errorMessage}`,
++      await failTarget(
++        message,
++        target,
++        app,
++        target.app_name
++          ? `App "${target.app_name}" no longer exists.`
++          : "App not found.",
+       );
+-      try {
+-        await markTarget(target.id, "failed", { errorMessage });
+-      } catch (databaseError) {
+-        console.error(
+-          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+-        );
+-      }
+       continue;
+     }
+ 
+     if (!app.is_active) {
+       failed++;
+-      const errorMessage = "App is inactive.";
+-      console.error(
+-        `[BROADCAST] FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
+-      );
+-      try {
+-        await markTarget(target.id, "failed", { errorMessage });
+-      } catch (databaseError) {
+-        console.error(
+-          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+-        );
+-      }
++      await failTarget(message, target, app, "App is inactive.");
+       continue;
+     }
+ 
+     const topic = normalizeTopic(app.topic);
+     if (!topic) {
+       failed++;
+-      const errorMessage = `No topic configured for app ${app.name}.`;
+-      console.error(
+-        `[BROADCAST] FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
++      await failTarget(message, target, app, `No topic configured for app ${app.name}.`);
++      continue;
++    }
++
++    if (!isValidTopic(topic)) {
++      failed++;
++      await failTarget(
++        message,
++        target,
++        app,
++        `Invalid topic ${JSON.stringify(topic)} for app ${app.name}. Topics may only contain letters, numbers and - _ . ~ %`,
+       );
+-      try {
+-        await markTarget(target.id, "failed", { errorMessage });
+-      } catch (databaseError) {
+-        console.error(
+-          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+-        );
+-      }
+       continue;
+     }
+ 
+@@ -315,7 +368,6 @@ export async function dispatchMessage(message: Message): Promise<void> {
+       console.error(
+         `[BROADCAST] APP_COMPLETE messageId=${message.id} appId=${app.id} result=failed error=${JSON.stringify(errorMessage)}`,
+       );
+-
+       try {
+         await markTarget(target.id, "failed", { errorMessage });
+       } catch (databaseError) {
+@@ -334,10 +386,6 @@ export async function dispatchMessage(message: Message): Promise<void> {
+     sent++;
+     try {
+       await markTarget(target.id, "sent", { fcmMessageId });
+-      await query(
+-        "UPDATE public.messages SET updated_at=now() WHERE id=$1",
+-        [message.id],
+-      );
+     } catch (databaseError) {
+       console.error(
+         `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${app.id} fcmAccepted=true error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+@@ -349,27 +397,13 @@ export async function dispatchMessage(message: Message): Promise<void> {
+     );
+   }
+ 
+-  const finalStatus =
+-    failed === 0 ? "sent" : sent === 0 ? "failed" : "partial_failure";
+-
+-  try {
+-    await query(
+-      "UPDATE public.messages SET status=$2,sent_at=$3,total_sent=$4,total_failed=$5,updated_at=now() WHERE id=$1",
+-      [
+-        message.id,
+-        finalStatus,
+-        new Date().toISOString(),
+-        sent,
+-        failed,
+-      ],
+-    );
+-  } catch (databaseError) {
+-    console.error(
+-      `[BROADCAST] MESSAGE_STATUS_UPDATE_FAILED messageId=${message.id} fcmProcessingComplete=true error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+-    );
+-  }
++  const finalStatus = await finalizeMessage(
++    message.id,
++    priorSent + sent,
++    priorFailed + failed,
++  );
+ 
+   console.info(
+-    `[BROADCAST] COMPLETE messageId=${message.id} apps=${targetsResult.rows.length} successfulApps=${sent} failedApps=${failed} status=${finalStatus}`,
++    `[BROADCAST] COMPLETE messageId=${message.id} apps=${pendingTargets.length} successfulApps=${sent} failedApps=${failed} status=${finalStatus}`,
+   );
+ }
+diff --git a/lib/fcm-utils.ts b/lib/fcm-utils.ts
+index fd937d7..6c5d6d7 100644
+--- a/lib/fcm-utils.ts
++++ b/lib/fcm-utils.ts
+@@ -5,6 +5,23 @@ export function normalizeTopic(topic: string): string {
+   return topic.trim().replace(/^\/topics\//, "");
+ }
+ 
++// FCM topic names may only contain letters, digits and - _ . ~ %
++const TOPIC_PATTERN = /^[A-Za-z0-9\-_.~%]+$/;
++
++export function isValidTopic(topic: string): boolean {
++  return TOPIC_PATTERN.test(topic);
++}
++
++export type FinalMessageStatus = "sent" | "partial_failure" | "failed";
++
++// A message with no processed targets is a failure, never a silent "sent".
++export function resolveMessageStatus(sent: number, failed: number): FinalMessageStatus {
++  if (sent + failed === 0) return "failed";
++  if (failed === 0) return "sent";
++  if (sent === 0) return "failed";
++  return "partial_failure";
++}
++
+ export function getPayloadSizeBytes(payload: unknown): number {
+   return new TextEncoder().encode(JSON.stringify(payload)).byteLength;
+ }
+diff --git a/supabase/functions/process-scheduled-fcm/index.ts b/supabase/functions/process-scheduled-fcm/index.ts
+index 57e02df..e4fe339 100644
+--- a/supabase/functions/process-scheduled-fcm/index.ts
++++ b/supabase/functions/process-scheduled-fcm/index.ts
+@@ -23,7 +23,9 @@ type Message = {
+ 
+ type Target = {
+   id: string;
+-  app_id: string;
++  app_id: string | null;
++  app_name: string | null;
++  status: "pending" | "sent" | "failed";
+ };
+ 
+ const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
+@@ -54,6 +56,28 @@ function normalizeTopic(topic: string): string {
+   return topic.trim().replace(/^\/topics\//, "");
+ }
+ 
++// FCM topic names may only contain letters, digits and - _ . ~ %
++function isValidTopic(topic: string): boolean {
++  return /^[A-Za-z0-9\-_.~%]+$/.test(topic);
++}
++
++// A message with no processed targets is a failure, never a silent "sent".
++function resolveMessageStatus(sent: number, failed: number): string {
++  if (sent + failed === 0) return "failed";
++  if (failed === 0) return "sent";
++  if (sent === 0) return "failed";
++  return "partial_failure";
++}
++
++// README documents FCM_CRON_SECRET; earlier deployments used CRON_SECRET.
++function cronSecret(): string {
++  const value = Deno.env.get("CRON_SECRET") ?? Deno.env.get("FCM_CRON_SECRET");
++  if (!value) {
++    throw new Error("Missing Edge Function secret: CRON_SECRET (or FCM_CRON_SECRET)");
++  }
++  return value;
++}
++
+ function getPayloadSizeBytes(payload: unknown): number {
+   return new TextEncoder().encode(JSON.stringify(payload)).byteLength;
+ }
+@@ -294,22 +318,96 @@ async function updateTarget(
+     : new Error("Unable to persist message target status.");
+ }
+ 
++async function failTarget(
++  supabaseAdmin: ReturnType<typeof createClient>,
++  messageId: string,
++  target: Target,
++  app: FirebaseApp | undefined,
++  errorMessage: string,
++) {
++  console.error(
++    `[SCHEDULER] APP_FAILED messageId=${messageId} appId=${target.app_id} appName=${JSON.stringify(app?.name ?? target.app_name)} reason=${JSON.stringify(errorMessage)}`,
++  );
++  try {
++    await updateTarget(supabaseAdmin, target.id, {
++      status: "failed",
++      error_message: errorMessage,
++    });
++  } catch (error) {
++    console.error("[SCHEDULER] TARGET_STATUS_UPDATE_FAILED", error);
++  }
++}
++
++async function finalizeMessage(
++  supabaseAdmin: ReturnType<typeof createClient>,
++  messageId: string,
++  sent: number,
++  failed: number,
++) {
++  const status = resolveMessageStatus(sent, failed);
++  const now = new Date().toISOString();
++
++  const { error } = await supabaseAdmin
++    .from("messages")
++    .update({
++      status,
++      sent_at: now,
++      total_sent: sent,
++      total_failed: failed,
++      updated_at: now,
++    })
++    .eq("id", messageId);
++
++  if (error) {
++    console.error(
++      `[SCHEDULER] MESSAGE_STATUS_UPDATE_FAILED messageId=${messageId} status=${status} error=${JSON.stringify(error.message)}`,
++    );
++  }
++
++  return status;
++}
++
+ async function processMessage(
+   supabaseAdmin: ReturnType<typeof createClient>,
+   message: Message,
+ ) {
+   const { data: targets, error: targetError } = await supabaseAdmin
+     .from("message_targets")
+-    .select("id,app_id")
++    .select("id,app_id,app_name,status")
+     .eq("message_id", message.id)
+-    .eq("status", "pending")
+     .order("created_at", { ascending: true })
+     .order("id", { ascending: true });
+ 
+   if (targetError) throw targetError;
+ 
+-  const selectedTargets = (targets ?? []) as Target[];
+-  const appIds = [...new Set(selectedTargets.map((target) => target.app_id))];
++  const allTargets = (targets ?? []) as Target[];
++
++  // Totals include targets resolved by an earlier run (e.g. after a stale-job
++  // recovery), so a resumed message never reports only its second half.
++  const priorSent = allTargets.filter((t) => t.status === "sent").length;
++  const priorFailed = allTargets.filter((t) => t.status === "failed").length;
++  const selectedTargets = allTargets.filter((t) => t.status === "pending");
++
++  if (!selectedTargets.length) {
++    const status = await finalizeMessage(
++      supabaseAdmin,
++      message.id,
++      priorSent,
++      priorFailed,
++    );
++    console.warn(
++      `[SCHEDULER] NOTHING_PENDING messageId=${message.id} priorSent=${priorSent} priorFailed=${priorFailed} status=${status}`,
++    );
++    return { id: message.id, sent: priorSent, failed: priorFailed, status };
++  }
++
++  const appIds = [
++    ...new Set(
++      selectedTargets
++        .map((target) => target.app_id)
++        .filter((id): id is string => id !== null),
++    ),
++  ];
+ 
+   let apps: FirebaseApp[] = [];
+   if (appIds.length) {
+@@ -329,66 +427,60 @@ async function processMessage(
+   let failed = 0;
+ 
+   console.info(
+-    `[SCHEDULER] START messageId=${message.id} selectedApps=${selectedTargets.length}`,
++    `[SCHEDULER] START messageId=${message.id} selectedApps=${selectedTargets.length} alreadySent=${priorSent} alreadyFailed=${priorFailed}`,
+   );
+ 
+   for (const target of selectedTargets) {
++    // Heartbeat: tells stale-job recovery this run is still alive.
+     await supabaseAdmin
+       .from("messages")
+       .update({ updated_at: new Date().toISOString() })
+       .eq("id", message.id);
+ 
+-    const app = appsById.get(target.app_id);
++    const app = target.app_id ? appsById.get(target.app_id) : undefined;
+ 
+     if (!app) {
+       failed++;
+-      const errorMessage = "App not found.";
+-      console.error(
+-        `[SCHEDULER] APP_FAILED messageId=${message.id} appId=${target.app_id} reason=${errorMessage}`,
++      await failTarget(
++        supabaseAdmin,
++        message.id,
++        target,
++        app,
++        target.app_name
++          ? `App "${target.app_name}" no longer exists.`
++          : "App not found.",
+       );
+-      try {
+-        await updateTarget(supabaseAdmin, target.id, {
+-          status: "failed",
+-          error_message: errorMessage,
+-        });
+-      } catch (error) {
+-        console.error("[SCHEDULER] TARGET_STATUS_UPDATE_FAILED", error);
+-      }
+       continue;
+     }
+ 
+     if (!app.is_active) {
+       failed++;
+-      const errorMessage = "App is inactive.";
+-      console.error(
+-        `[SCHEDULER] APP_FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
+-      );
+-      try {
+-        await updateTarget(supabaseAdmin, target.id, {
+-          status: "failed",
+-          error_message: errorMessage,
+-        });
+-      } catch (error) {
+-        console.error("[SCHEDULER] TARGET_STATUS_UPDATE_FAILED", error);
+-      }
++      await failTarget(supabaseAdmin, message.id, target, app, "App is inactive.");
+       continue;
+     }
+ 
+     const topic = normalizeTopic(app.topic);
+     if (!topic) {
+       failed++;
+-      const errorMessage = `No topic configured for app ${app.name}.`;
+-      console.error(
+-        `[SCHEDULER] APP_FAILED messageId=${message.id} appId=${app.id} reason=${errorMessage}`,
++      await failTarget(
++        supabaseAdmin,
++        message.id,
++        target,
++        app,
++        `No topic configured for app ${app.name}.`,
++      );
++      continue;
++    }
++
++    if (!isValidTopic(topic)) {
++      failed++;
++      await failTarget(
++        supabaseAdmin,
++        message.id,
++        target,
++        app,
++        `Invalid topic ${JSON.stringify(topic)} for app ${app.name}. Topics may only contain letters, numbers and - _ . ~ %`,
+       );
+-      try {
+-        await updateTarget(supabaseAdmin, target.id, {
+-          status: "failed",
+-          error_message: errorMessage,
+-        });
+-      } catch (error) {
+-        console.error("[SCHEDULER] TARGET_STATUS_UPDATE_FAILED", error);
+-      }
+       continue;
+     }
+ 
+@@ -440,31 +532,20 @@ async function processMessage(
+     );
+   }
+ 
+-  const status =
+-    failed === 0 ? "sent" : sent === 0 ? "failed" : "partial_failure";
+-
+-  const { error: messageUpdateError } = await supabaseAdmin
+-    .from("messages")
+-    .update({
+-      status,
+-      sent_at: new Date().toISOString(),
+-      total_sent: sent,
+-      total_failed: failed,
+-      updated_at: new Date().toISOString(),
+-    })
+-    .eq("id", message.id);
+-
+-  if (messageUpdateError) {
+-    console.error(
+-      `[SCHEDULER] MESSAGE_STATUS_UPDATE_FAILED messageId=${message.id} status=${status} error=${JSON.stringify(messageUpdateError.message)}`,
+-    );
+-  }
++  const totalSent = priorSent + sent;
++  const totalFailed = priorFailed + failed;
++  const status = await finalizeMessage(
++    supabaseAdmin,
++    message.id,
++    totalSent,
++    totalFailed,
++  );
+ 
+   console.info(
+     `[SCHEDULER] COMPLETE messageId=${message.id} apps=${selectedTargets.length} successfulApps=${sent} failedApps=${failed} status=${status}`,
+   );
+ 
+-  return { id: message.id, sent, failed, status };
++  return { id: message.id, sent: totalSent, failed: totalFailed, status };
+ }
+ 
+ Deno.serve(async (request) => {
+@@ -472,7 +553,17 @@ Deno.serve(async (request) => {
+     return Response.json({ error: "Method not allowed." }, { status: 405 });
+   }
+ 
+-  const expectedSecret = env("CRON_SECRET");
++  let expectedSecret: string;
++  try {
++    expectedSecret = cronSecret();
++  } catch (error) {
++    console.error("[SCHEDULER] CONFIG_ERROR", error);
++    return Response.json(
++      { success: false, error: error instanceof Error ? error.message : "Not configured." },
++      { status: 500 },
++    );
++  }
++
+   const authorization = request.headers.get("authorization") ?? "";
+ 
+   if (authorization !== `Bearer ${expectedSecret}`) {
+diff --git a/supabase/migrations/20260929_harden_targets_and_recovery.sql b/supabase/migrations/20260929_harden_targets_and_recovery.sql
+new file mode 100644
+index 0000000..68a5387
+--- /dev/null
++++ b/supabase/migrations/20260929_harden_targets_and_recovery.sql
+@@ -0,0 +1,70 @@
++-- Hardening for multi-app broadcasting.
++--
++-- 1. Deleting a Firebase app must not rewrite the history of past broadcasts.
++--    message_targets.app_id used ON DELETE CASCADE, which silently removed the
++--    target row (messages.total_apps_targeted still counted it). Keep the row,
++--    null the link, and snapshot the app name so History can still show it.
++-- 2. Stale-job recovery now also covers "send now" messages (scheduled_at IS
++--    NULL), which previously stayed in `sending` forever if the request that
++--    was dispatching them was killed by a platform timeout.
++
++alter table public.message_targets
++  add column if not exists app_name text;
++
++update public.message_targets mt
++set app_name = fa.name
++from public.firebase_apps fa
++where fa.id = mt.app_id
++  and mt.app_name is null;
++
++alter table public.message_targets
++  alter column app_id drop not null;
++
++alter table public.message_targets
++  drop constraint if exists message_targets_app_id_fkey;
++
++alter table public.message_targets
++  add constraint message_targets_app_id_fkey
++  foreign key (app_id) references public.firebase_apps(id) on delete set null;
++
++create or replace function public.claim_scheduled_messages(p_limit integer default 25)
++returns setof public.messages
++language plpgsql
++security definer
++set search_path = public
++as $$
++begin
++  -- Recover jobs whose worker died mid-run. The processors touch updated_at
++  -- before every target, so 10 quiet minutes means the worker is gone.
++  -- "Send now" rows have no scheduled_at; make them immediately due.
++  update public.messages
++  set status = 'scheduled',
++      scheduled_at = coalesce(scheduled_at, now()),
++      updated_at = now()
++  where status = 'sending'
++    and updated_at < now() - interval '10 minutes';
++
++  return query
++  with due as (
++    select id
++    from public.messages
++    where status = 'scheduled'
++      and scheduled_at is not null
++      and scheduled_at <= now()
++    order by scheduled_at asc, created_at asc
++    limit greatest(1, least(coalesce(p_limit, 25), 100))
++    for update skip locked
++  )
++  update public.messages m
++  set status = 'sending',
++      updated_at = now()
++  from due
++  where m.id = due.id
++  returning m.*;
++end;
++$$;
++
++revoke all on function public.claim_scheduled_messages(integer) from public;
++revoke all on function public.claim_scheduled_messages(integer) from anon;
++revoke all on function public.claim_scheduled_messages(integer) from authenticated;
++grant execute on function public.claim_scheduled_messages(integer) to service_role;
+diff --git a/supabase/schema.sql b/supabase/schema.sql
+index 3810ab3..516dd5f 100644
+--- a/supabase/schema.sql
++++ b/supabase/schema.sql
+@@ -12,6 +12,7 @@ create extension if not exists "pgcrypto";
+ create table if not exists firebase_apps (
+   id                        uuid primary key default gen_random_uuid(),
+   -- Custom app login is used; user_id is an internal owner UUID, not Supabase Auth.
++  user_id                   uuid not null,
+   name                      text not null,
+   project_id                text not null,
+   app_icon_url              text,
+@@ -32,6 +33,7 @@ create index if not exists firebase_apps_user_id_idx on firebase_apps(user_id);
+ create table if not exists messages (
+   id                    uuid primary key default gen_random_uuid(),
+   -- Custom app login is used; user_id is an internal owner UUID, not Supabase Auth.
++  user_id               uuid not null,
+   topic                 text not null default '',
+ 
+   notification_title    text,
+@@ -65,7 +67,10 @@ create index if not exists messages_scheduled_at_idx on messages(scheduled_at);
+ create table if not exists message_targets (
+   id              uuid primary key default gen_random_uuid(),
+   message_id      uuid not null references messages(id) on delete cascade,
+-  app_id          uuid not null references firebase_apps(id) on delete cascade,
++  -- ON DELETE SET NULL keeps broadcast history when an app is deleted;
++  -- app_name is a snapshot so History can still label the target.
++  app_id          uuid references firebase_apps(id) on delete set null,
++  app_name        text,
+   status          text not null default 'pending' check (status in ('pending', 'sent', 'failed')),
+   fcm_message_id  text,
+   error_message   text,
+diff --git a/tests/fcm-utils.test.mjs b/tests/fcm-utils.test.mjs
+index aefe4ae..b8c53ad 100644
+--- a/tests/fcm-utils.test.mjs
++++ b/tests/fcm-utils.test.mjs
+@@ -4,8 +4,10 @@ import {
+   getPayloadSizeBytes,
+   getRetryDelayMs,
+   isRetryableFcmStatus,
++  isValidTopic,
+   normalizeTopic,
+   parseRetryAfterMs,
++  resolveMessageStatus,
+ } from "../lib/fcm-utils.ts";
+ 
+ test("normalizes topic names", () => {
+@@ -40,3 +42,20 @@ test("retry delay honors Retry-After and remains bounded", () => {
+   const delay = getRetryDelayMs(2, null);
+   assert.ok(delay >= 10000 && delay <= 65000);
+ });
++
++test("validates FCM topic names", () => {
++  assert.equal(isValidTopic("simpleapplicationtech"), true);
++  assert.equal(isValidTopic("com.videoplayer.videodownloader.hddownloader.msl"), true);
++  assert.equal(isValidTopic("news_v2-beta~1%"), true);
++  assert.equal(isValidTopic(""), false);
++  assert.equal(isValidTopic("has space"), false);
++  assert.equal(isValidTopic("/topics/x"), false);
++  assert.equal(isValidTopic("emoji😀"), false);
++});
++
++test("resolves final message status from target totals", () => {
++  assert.equal(resolveMessageStatus(3, 0), "sent");
++  assert.equal(resolveMessageStatus(2, 1), "partial_failure");
++  assert.equal(resolveMessageStatus(0, 3), "failed");
++  assert.equal(resolveMessageStatus(0, 0), "failed");
++});
+diff --git a/types/database.ts b/types/database.ts
+index 907ce3d..9e41483 100644
+--- a/types/database.ts
++++ b/types/database.ts
+@@ -10,5 +10,5 @@ export interface Message {
+  total_apps_targeted:number; total_sent:number; total_failed:number; sent_count:number; delivered:number; delivery_rate:number|null; delivery_failed:number;
+  apps?:MessageApp[]; created_at:string; updated_at:string;
+ }
+-export interface MessageTarget { id:string; message_id:string; app_id:string; status:TargetStatus; fcm_message_id:string|null; error_message:string|null; sent_at:string|null; created_at:string; }
++export interface MessageTarget { id:string; message_id:string; app_id:string|null; app_name:string|null; status:TargetStatus; fcm_message_id:string|null; error_message:string|null; sent_at:string|null; created_at:string; }
+ export interface MessageWithTargets extends Message { message_targets:(MessageTarget & {firebase_apps:{name:string;app_icon_url?:string|null}|null})[]; }
+\ No newline at end of file
+-- 
+2.43.0
+
