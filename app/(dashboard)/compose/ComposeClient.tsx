@@ -134,6 +134,9 @@ export function ComposeClient() {
       const payload = {
         message: {
           topic: app.topic?.trim() ?? "",
+          android: {
+            priority: "HIGH",
+          },
           notification: {
             title: notificationTitle ?? "",
             body: notificationBody ?? "",
