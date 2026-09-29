@@ -180,21 +180,35 @@ async function markTarget(
   status: "sent" | "failed",
   values: { fcmMessageId?: string; errorMessage?: string },
 ) {
-  await query(
-    `UPDATE public.message_targets
-     SET status=$2,
-         fcm_message_id=$3,
-         error_message=$4,
-         sent_at=$5
-     WHERE id=$1`,
-    [
-      targetId,
-      status,
-      values.fcmMessageId ?? null,
-      values.errorMessage ?? null,
-      status === "sent" ? new Date().toISOString() : null,
-    ],
-  );
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await query(
+        `UPDATE public.message_targets
+         SET status=$2,
+             fcm_message_id=$3,
+             error_message=$4,
+             sent_at=$5
+         WHERE id=$1`,
+        [
+          targetId,
+          status,
+          values.fcmMessageId ?? null,
+          values.errorMessage ?? null,
+          status === "sent" ? new Date().toISOString() : null,
+        ],
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await sleep(250 * 2 ** attempt);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Unable to persist message target status.");
 }
 
 export async function dispatchMessage(message: Message): Promise<void> {
@@ -271,23 +285,14 @@ export async function dispatchMessage(message: Message): Promise<void> {
       `[BROADCAST] APP_START messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} projectId=${app.project_id} topic=${JSON.stringify(topic)}`,
     );
 
+    let fcmMessageId: string;
     try {
-      const fcmMessageId = await sendToFirebase(message, app, topic);
-      sent++;
-      await markTarget(target.id, "sent", { fcmMessageId });
-
-      await query(
-        "UPDATE public.messages SET updated_at=now() WHERE id=$1",
-        [message.id],
-      );
-
-      console.info(
-        `[BROADCAST] APP_COMPLETE messageId=${message.id} appId=${app.id} result=accepted`,
-      );
+      fcmMessageId = await sendToFirebase(message, app, topic);
     } catch (error) {
       failed++;
       const errorMessage =
         error instanceof Error ? error.message : "Unknown FCM error.";
+
       console.error(
         `[BROADCAST] APP_COMPLETE messageId=${message.id} appId=${app.id} result=failed error=${JSON.stringify(errorMessage)}`,
       );
@@ -300,8 +305,29 @@ export async function dispatchMessage(message: Message): Promise<void> {
         );
       }
 
-      // Intentionally continue to the next selected app.
+      // A failed app never stops the next selected app.
+      continue;
     }
+
+    // FCM has already accepted this app's fanout. Persist that fact separately
+    // from the send operation so a database write failure is not misreported
+    // as an FCM failure and accidentally retried as a new send.
+    sent++;
+    try {
+      await markTarget(target.id, "sent", { fcmMessageId });
+      await query(
+        "UPDATE public.messages SET updated_at=now() WHERE id=$1",
+        [message.id],
+      );
+    } catch (databaseError) {
+      console.error(
+        `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${app.id} fcmAccepted=true error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+      );
+    }
+
+    console.info(
+      `[BROADCAST] APP_COMPLETE messageId=${message.id} appId=${app.id} result=accepted fcmAccepted=true`,
+    );
   }
 
   const finalStatus =
