@@ -15,6 +15,8 @@ export function ComposeClient() {
   const router = useRouter();
   const [apps, setApps] = useState<FirebaseAppPublic[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
+  const [inactiveAppCount, setInactiveAppCount] = useState(0);
+  const [appsLoadError, setAppsLoadError] = useState<string | null>(null);
   const [appSearchOpen, setAppSearchOpen] = useState(false);
   const [appSearch, setAppSearch] = useState("");
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set());
@@ -69,10 +71,13 @@ export function ComposeClient() {
     fetch("/api/apps")
       .then((r) => r.json())
       .then((data) => {
-        const activeApps = (data.apps ?? []).filter((a: FirebaseAppPublic) => a.is_active);
+        const allApps: FirebaseAppPublic[] = data.apps ?? [];
+        const activeApps = allApps.filter((a) => a.is_active);
         setApps(activeApps);
-        setLoadingApps(false);
-      });
+        setInactiveAppCount(allApps.length - activeApps.length);
+      })
+      .catch(() => setAppsLoadError("Could not load apps. Refresh the page."))
+      .finally(() => setLoadingApps(false));
   }, []);
 
   useEffect(() => {
@@ -182,16 +187,28 @@ export function ComposeClient() {
       notificationImage: notificationImage || undefined,
     };
 
-    const res = await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
+    let res: Response;
+    try {
+      res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      setSubmitting(null);
+      setError("Network error. The broadcast may have been partially sent. Check History before trying again.");
+      return;
+    }
+
+    // A platform timeout returns an HTML error page, not JSON.
+    const data = await res.json().catch(() => null);
     setSubmitting(null);
 
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
+    if (!res.ok || !data) {
+      setError(
+        data?.error ??
+          `Server error (HTTP ${res.status}). Some apps may already have received this. Check History before sending again.`
+      );
       return;
     }
 
@@ -202,9 +219,9 @@ export function ComposeClient() {
         .map((target: { app_name?: string | null; error_message?: string | null }) => `${target.app_name || "Target app"}: ${target.error_message || "Unknown FCM error"}`)
         .join(" | ");
       if (m.total_failed > 0) {
-        setSuccessMessage(`Sent — ${m.total_sent} delivered, ${m.total_failed} failed.${failedDetails ? ` Error: ${failedDetails}` : ""}`);
+        setSuccessMessage(`${m.total_sent} accepted by FCM, ${m.total_failed} failed.${failedDetails ? ` Error: ${failedDetails}` : ""}`);
       } else {
-        setSuccessMessage(`Sent — ${m.total_sent} delivered, ${m.total_failed} failed.`);
+        setSuccessMessage(`${m.total_sent} accepted by FCM, ${m.total_failed} failed. Devices receive it only if they are subscribed to the app's topic.`);
       }
     } else if (action === "schedule") {
       setSuccessMessage("Scheduled.");
@@ -345,6 +362,12 @@ export function ComposeClient() {
                   </div>
                 )}
               </div>
+              {appsLoadError && <p className="mt-2 text-xs text-danger">{appsLoadError}</p>}
+              {inactiveAppCount > 0 && (
+                <p className="target-apps-subtitle mt-2">
+                  {inactiveAppCount} inactive app{inactiveAppCount === 1 ? " is" : "s are"} hidden. Activate {inactiveAppCount === 1 ? "it" : "them"} on the Apps page to include {inactiveAppCount === 1 ? "it" : "them"}.
+                </p>
+              )}
             </Card>
 
             <Card className="p-5">

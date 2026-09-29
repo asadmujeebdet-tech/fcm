@@ -4,8 +4,10 @@ import {
   getPayloadSizeBytes,
   getRetryDelayMs,
   isRetryableFcmStatus,
+  isValidTopic,
   normalizeTopic,
   parseRetryAfterMs,
+  resolveMessageStatus,
 } from "../lib/fcm-utils.ts";
 
 test("normalizes topic names", () => {
@@ -39,4 +41,21 @@ test("retry delay honors Retry-After and remains bounded", () => {
   assert.equal(getRetryDelayMs(0, 999999), 120000);
   const delay = getRetryDelayMs(2, null);
   assert.ok(delay >= 10000 && delay <= 65000);
+});
+
+test("validates FCM topic names", () => {
+  assert.equal(isValidTopic("simpleapplicationtech"), true);
+  assert.equal(isValidTopic("com.videoplayer.videodownloader.hddownloader.msl"), true);
+  assert.equal(isValidTopic("news_v2-beta~1%"), true);
+  assert.equal(isValidTopic(""), false);
+  assert.equal(isValidTopic("has space"), false);
+  assert.equal(isValidTopic("/topics/x"), false);
+  assert.equal(isValidTopic("emoji😀"), false);
+});
+
+test("resolves final message status from target totals", () => {
+  assert.equal(resolveMessageStatus(3, 0), "sent");
+  assert.equal(resolveMessageStatus(2, 1), "partial_failure");
+  assert.equal(resolveMessageStatus(0, 3), "failed");
+  assert.equal(resolveMessageStatus(0, 0), "failed");
 });

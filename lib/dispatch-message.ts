@@ -6,10 +6,12 @@ import {
   getPayloadSizeBytes,
   getRetryDelayMs,
   isRetryableFcmStatus,
+  isValidTopic,
   MAX_FCM_ATTEMPTS,
   MAX_TOPIC_PAYLOAD_BYTES,
   normalizeTopic,
   parseRetryAfterMs,
+  resolveMessageStatus,
   sleep,
 } from "@/lib/fcm-utils";
 
@@ -212,91 +214,142 @@ async function markTarget(
     : new Error("Unable to persist message target status.");
 }
 
+type TargetRow = {
+  id: string;
+  app_id: string | null;
+  app_name: string | null;
+  status: "pending" | "sent" | "failed";
+};
+
+async function failTarget(
+  message: Message,
+  target: TargetRow,
+  app: FirebaseApp | undefined,
+  errorMessage: string,
+) {
+  console.error(
+    `[BROADCAST] FAILED messageId=${message.id} appId=${target.app_id} appName=${JSON.stringify(app?.name ?? target.app_name)} reason=${JSON.stringify(errorMessage)}`,
+  );
+  try {
+    await markTarget(target.id, "failed", { errorMessage });
+  } catch (databaseError) {
+    console.error(
+      `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+    );
+  }
+}
+
+async function finalizeMessage(messageId: string, sent: number, failed: number) {
+  const finalStatus = resolveMessageStatus(sent, failed);
+  try {
+    await query(
+      "UPDATE public.messages SET status=$2,sent_at=$3,total_sent=$4,total_failed=$5,updated_at=now() WHERE id=$1",
+      [messageId, finalStatus, new Date().toISOString(), sent, failed],
+    );
+  } catch (databaseError) {
+    console.error(
+      `[BROADCAST] MESSAGE_STATUS_UPDATE_FAILED messageId=${messageId} fcmProcessingComplete=true error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+    );
+  }
+  return finalStatus;
+}
+
 export async function dispatchMessage(message: Message): Promise<void> {
   await query(
     "UPDATE public.messages SET status='sending',updated_at=now() WHERE id=$1",
     [message.id],
   );
 
-  const targetsResult = await query<{ id: string; app_id: string }>(
-    `SELECT id,app_id
+  const targetsResult = await query<TargetRow>(
+    `SELECT id,app_id,app_name,status
      FROM public.message_targets
-     WHERE message_id=$1 AND status='pending'
+     WHERE message_id=$1
      ORDER BY created_at ASC, id ASC`,
     [message.id],
   );
 
-  if (!targetsResult.rows.length) {
-    await query(
-      "UPDATE public.messages SET status='failed',updated_at=now() WHERE id=$1",
-      [message.id],
+  // Totals include targets resolved by an earlier run (e.g. after a stale-job
+  // recovery), so a resumed message never reports only its second half.
+  const priorSent = targetsResult.rows.filter((t) => t.status === "sent").length;
+  const priorFailed = targetsResult.rows.filter((t) => t.status === "failed").length;
+  const pendingTargets = targetsResult.rows.filter((t) => t.status === "pending");
+
+  if (!pendingTargets.length) {
+    const status = await finalizeMessage(message.id, priorSent, priorFailed);
+    console.warn(
+      `[BROADCAST] NOTHING_PENDING messageId=${message.id} priorSent=${priorSent} priorFailed=${priorFailed} status=${status}`,
     );
     return;
   }
 
-  const appIds = [...new Set(targetsResult.rows.map((target) => target.app_id))];
-  const appsResult = await query<FirebaseApp>(
-    "SELECT * FROM public.firebase_apps WHERE id=ANY($1::uuid[])",
-    [appIds],
-  );
+  const appIds = [
+    ...new Set(
+      pendingTargets
+        .map((target) => target.app_id)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const appsResult = appIds.length
+    ? await query<FirebaseApp>(
+        "SELECT * FROM public.firebase_apps WHERE id=ANY($1::uuid[])",
+        [appIds],
+      )
+    : { rows: [] as FirebaseApp[] };
   const appsById = new Map(appsResult.rows.map((app) => [app.id, app]));
 
   let sent = 0;
   let failed = 0;
 
   console.info(
-    `[BROADCAST] START messageId=${message.id} selectedApps=${targetsResult.rows.length}`,
+    `[BROADCAST] START messageId=${message.id} selectedApps=${pendingTargets.length} alreadySent=${priorSent} alreadyFailed=${priorFailed}`,
   );
 
-  for (const target of targetsResult.rows) {
-    const app = appsById.get(target.app_id);
+  for (const target of pendingTargets) {
+    // Heartbeat: tells stale-job recovery this run is still alive.
+    try {
+      await query("UPDATE public.messages SET updated_at=now() WHERE id=$1", [message.id]);
+    } catch (databaseError) {
+      console.error(
+        `[BROADCAST] HEARTBEAT_FAILED messageId=${message.id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+      );
+    }
+
+    const app = target.app_id ? appsById.get(target.app_id) : undefined;
 
     if (!app) {
       failed++;
-      const errorMessage = "App not found.";
-      console.error(
-        `[BROADCAST] FAILED messageId=${message.id} appId=${target.app_id} reason=${errorMessage}`,
+      await failTarget(
+        message,
+        target,
+        app,
+        target.app_name
+          ? `App "${target.app_name}" no longer exists.`
+          : "App not found.",
       );
-      try {
-        await markTarget(target.id, "failed", { errorMessage });
-      } catch (databaseError) {
-        console.error(
-          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
-        );
-      }
       continue;
     }
 
     if (!app.is_active) {
       failed++;
-      const errorMessage = "App is inactive.";
-      console.error(
-        `[BROADCAST] FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
-      );
-      try {
-        await markTarget(target.id, "failed", { errorMessage });
-      } catch (databaseError) {
-        console.error(
-          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
-        );
-      }
+      await failTarget(message, target, app, "App is inactive.");
       continue;
     }
 
     const topic = normalizeTopic(app.topic);
     if (!topic) {
       failed++;
-      const errorMessage = `No topic configured for app ${app.name}.`;
-      console.error(
-        `[BROADCAST] FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
+      await failTarget(message, target, app, `No topic configured for app ${app.name}.`);
+      continue;
+    }
+
+    if (!isValidTopic(topic)) {
+      failed++;
+      await failTarget(
+        message,
+        target,
+        app,
+        `Invalid topic ${JSON.stringify(topic)} for app ${app.name}. Topics may only contain letters, numbers and - _ . ~ %`,
       );
-      try {
-        await markTarget(target.id, "failed", { errorMessage });
-      } catch (databaseError) {
-        console.error(
-          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
-        );
-      }
       continue;
     }
 
@@ -315,7 +368,6 @@ export async function dispatchMessage(message: Message): Promise<void> {
       console.error(
         `[BROADCAST] APP_COMPLETE messageId=${message.id} appId=${app.id} result=failed error=${JSON.stringify(errorMessage)}`,
       );
-
       try {
         await markTarget(target.id, "failed", { errorMessage });
       } catch (databaseError) {
@@ -334,10 +386,6 @@ export async function dispatchMessage(message: Message): Promise<void> {
     sent++;
     try {
       await markTarget(target.id, "sent", { fcmMessageId });
-      await query(
-        "UPDATE public.messages SET updated_at=now() WHERE id=$1",
-        [message.id],
-      );
     } catch (databaseError) {
       console.error(
         `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${app.id} fcmAccepted=true error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
@@ -349,27 +397,13 @@ export async function dispatchMessage(message: Message): Promise<void> {
     );
   }
 
-  const finalStatus =
-    failed === 0 ? "sent" : sent === 0 ? "failed" : "partial_failure";
-
-  try {
-    await query(
-      "UPDATE public.messages SET status=$2,sent_at=$3,total_sent=$4,total_failed=$5,updated_at=now() WHERE id=$1",
-      [
-        message.id,
-        finalStatus,
-        new Date().toISOString(),
-        sent,
-        failed,
-      ],
-    );
-  } catch (databaseError) {
-    console.error(
-      `[BROADCAST] MESSAGE_STATUS_UPDATE_FAILED messageId=${message.id} fcmProcessingComplete=true error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
-    );
-  }
+  const finalStatus = await finalizeMessage(
+    message.id,
+    priorSent + sent,
+    priorFailed + failed,
+  );
 
   console.info(
-    `[BROADCAST] COMPLETE messageId=${message.id} apps=${targetsResult.rows.length} successfulApps=${sent} failedApps=${failed} status=${finalStatus}`,
+    `[BROADCAST] COMPLETE messageId=${message.id} apps=${pendingTargets.length} successfulApps=${sent} failedApps=${failed} status=${finalStatus}`,
   );
 }

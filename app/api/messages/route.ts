@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { query } from "@/lib/db";
+import { query, withTransaction } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/current-user";
 import { dispatchMessage } from "@/lib/dispatch-message";
+import type { PoolClient } from "pg";
 import { Message } from "@/types/database";
 
 export const runtime = "nodejs";
+// Send-now dispatches every selected app inside this request. Give it room on
+// hosts that honour it (Vercel); the scheduler covers anything that still dies.
+export const maxDuration = 60;
 const baseSchema = z.object({
   appIds:z.array(z.string().uuid()).min(1,"Select at least one app"), topic:z.string().default(""),
   action:z.enum(["draft","send_now","schedule"]),
@@ -18,8 +22,8 @@ export async function GET(){
     const r=await query(`
       SELECT m.*,
         COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
-          'id',fa.id,'name',fa.name,'app_icon_url',fa.app_icon_url
-        )) FILTER (WHERE fa.id IS NOT NULL),'[]'::jsonb) AS apps
+          'id',COALESCE(mt.app_id,mt.id),'name',COALESCE(fa.name,mt.app_name,'Deleted app'),'app_icon_url',fa.app_icon_url
+        )) FILTER (WHERE mt.id IS NOT NULL),'[]'::jsonb) AS apps
       FROM public.messages m
       LEFT JOIN public.message_targets mt ON mt.message_id=m.id
       LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
@@ -54,25 +58,34 @@ export async function POST(req:NextRequest){
     const owned=await query<{id:string}>(`SELECT id FROM public.firebase_apps WHERE user_id=$1 AND id=ANY($2::uuid[])`,[userId,requestedAppIds]);
     const ownedIds=new Set(owned.rows.map(a=>a.id));
     const validAppIds=requestedAppIds.filter(id=>ownedIds.has(id));
-    if(!validAppIds.length)return NextResponse.json({error:"None of the selected apps are valid"},{status:400});
-    const createMessage=async(status:"draft"|"scheduled",scheduledAt:string|null)=>{
-      const r=await query<Message>(`INSERT INTO public.messages
+    // Never broadcast to a silent subset of what the user selected.
+    if(validAppIds.length!==requestedAppIds.length){
+      const missing=requestedAppIds.filter(id=>!ownedIds.has(id));
+      return NextResponse.json({error:`${missing.length} selected app(s) no longer exist or are not available. Refresh the page and select again. Nothing was sent.`,missingAppIds:missing},{status:400});
+    }
+    // Message row + all target rows are written atomically, so a failure can
+    // never leave a broadcast with missing targets.
+    const insertMessage=async(client:PoolClient,status:"draft"|"scheduled",scheduledAt:string|null)=>{
+      const r=await client.query<Message>(`INSERT INTO public.messages
         (user_id,topic,notification_title,notification_body,notification_image,status,scheduled_at,total_apps_targeted)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,[
           userId,input.topic||"",input.notificationTitle||null,input.notificationBody||null,input.notificationImage||null,
           status,scheduledAt,validAppIds.length]);
       const message=r.rows[0]; if(!message)throw new Error("Failed to create message");
-      await query(`INSERT INTO public.message_targets(message_id,app_id) SELECT $1,unnest($2::uuid[])`,[message.id,validAppIds]);
+      const t=await client.query(`INSERT INTO public.message_targets(message_id,app_id,app_name)
+        SELECT $1,fa.id,fa.name FROM public.firebase_apps fa WHERE fa.id=ANY($2::uuid[])`,[message.id,validAppIds]);
+      if(t.rowCount!==validAppIds.length)throw new Error("Failed to create all message targets");
       return message;
     };
     if(input.action==="send_now"){
-      const message=await createMessage("draft",null); await dispatchMessage(message);
+      const message=await withTransaction(client=>insertMessage(client,"draft",null)); await dispatchMessage(message);
       const final=await query<Message>("SELECT * FROM public.messages WHERE id=$1",[message.id]);
-      const targets=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,fa.name AS app_name,fa.app_icon_url
+      const targets=await query(`SELECT mt.id,mt.app_id,mt.status,mt.fcm_message_id,mt.error_message,mt.sent_at,COALESCE(fa.name,mt.app_name) AS app_name,fa.app_icon_url
         FROM public.message_targets mt LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id WHERE mt.message_id=$1 ORDER BY mt.created_at ASC`,[message.id]);
       return NextResponse.json({message:final.rows[0]??message,targets:targets.rows},{status:201});
     }
-    const insertedMessages:Message[]=[]; for(const scheduledIso of scheduleTimes)insertedMessages.push(await createMessage("scheduled",scheduledIso));
+    // All scheduled times succeed or none do.
+    const insertedMessages=await withTransaction(async client=>{const rows:Message[]=[];for(const scheduledIso of scheduleTimes)rows.push(await insertMessage(client,"scheduled",scheduledIso));return rows;});
     return NextResponse.json({messages:insertedMessages},{status:201});
   }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }

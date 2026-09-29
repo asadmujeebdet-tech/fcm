@@ -100,11 +100,15 @@ supabase/schema.sql
 
 Run it in Supabase SQL Editor if the project has not been initialized yet.
 
-Then run:
+Then run, in order:
 
 ```
 supabase/migrations/20260927_fcm_scheduler.sql
+supabase/migrations/20260929_harden_targets_and_recovery.sql
 ```
+
+**Run the second migration before deploying this version of the app.** The app now
+writes `message_targets.app_name`, which does not exist until the migration is applied.
 
 This migration:
 
@@ -114,18 +118,33 @@ This migration:
 - adds atomic scheduled-message claiming
 - recovers stale `sending` jobs after 10 minutes
 
+The `20260929_harden_targets_and_recovery.sql` migration additionally:
+
+- changes `message_targets.app_id` from `ON DELETE CASCADE` to `ON DELETE SET NULL` and
+  stores an `app_name` snapshot, so deleting an app no longer erases it from past broadcasts
+- extends stale-job recovery to "Send now" messages that were killed mid-send
+
 ## 2. Required Vercel / Next.js environment variables
 
 Keep the existing application variables:
 
 ```bash
+# Dashboard login. Server-side only: never prefix the password with NEXT_PUBLIC_.
+EMAIL=admin@example.com
+PASSWORD=your-login-password
+
+# Optional: prefill the email field on /login (the email is not secret).
 NEXT_PUBLIC_EMAIL=admin@example.com
-NEXT_PUBLIC_PASSWORD=your-login-password
 
 DATABASE_URL=your-supabase-postgres-connection-string
 
 ENCRYPTION_SECRET_KEY=64-character-hex-string
 ```
+
+> **Security:** `NEXT_PUBLIC_*` variables are compiled into the browser bundle and are
+> readable by anyone who opens the site. Do **not** set `NEXT_PUBLIC_PASSWORD`. If you
+> ever did in production, remove it, redeploy, and change `PASSWORD` (it is also the
+> key that signs login sessions, so changing it signs everyone out).
 
 Generate the encryption key with:
 
@@ -160,6 +179,9 @@ This must be the **same 64-character hex value used by the Next.js application**
 The Edge Function needs the same key because it decrypts the Firebase service-account JSON stored by the existing app.
 
 ### FCM_CRON_SECRET
+
+The Edge Function accepts the secret under either name, `CRON_SECRET` or `FCM_CRON_SECRET`.
+Use one, and store the same value in the Vault entry `fcm_scheduler_cron_secret`.
 
 Generate a separate random secret:
 
@@ -412,7 +434,26 @@ For debugging, also check:
 
 **Supabase Dashboard → Edge Functions → process-scheduled-fcm → Logs**
 
-## 13. Security
+## 13. Troubleshooting: "some apps did not get the notification"
+
+The History page shows one row per app. `accepted` means **Google's FCM API accepted the
+request**. It does not mean a device received it. FCM accepts a topic message even when
+nobody is subscribed to that topic, so an app can be `accepted` and still deliver nothing.
+
+If an app shows `accepted` but users get nothing:
+
+1. The app's stored **topic** must match, exactly and case-sensitively, the topic that
+   the mobile app passes to `subscribeToTopic(...)`.
+2. Send a test from **Firebase Console -> Messaging** to the same topic. If that also
+   fails, the problem is on the device or app side (not subscribed, notification
+   permission denied on Android 13+, or a missing APNs key for iOS), not in this dashboard.
+3. Confirm the app's service account belongs to the same Firebase project as the
+   mobile app (`project_id` on the Apps page).
+
+If an app shows `failed`, the reason is stored on the target and shown in History.
+Inactive apps are hidden from Compose; Compose tells you how many are hidden.
+
+## 14. Security
 
 - Never commit Firebase service-account JSON.
 - Never commit `SUPABASE_SERVICE_ROLE_KEY`.

@@ -12,6 +12,7 @@ create extension if not exists "pgcrypto";
 create table if not exists firebase_apps (
   id                        uuid primary key default gen_random_uuid(),
   -- Custom app login is used; user_id is an internal owner UUID, not Supabase Auth.
+  user_id                   uuid not null,
   name                      text not null,
   project_id                text not null,
   app_icon_url              text,
@@ -32,6 +33,7 @@ create index if not exists firebase_apps_user_id_idx on firebase_apps(user_id);
 create table if not exists messages (
   id                    uuid primary key default gen_random_uuid(),
   -- Custom app login is used; user_id is an internal owner UUID, not Supabase Auth.
+  user_id               uuid not null,
   topic                 text not null default '',
 
   notification_title    text,
@@ -65,7 +67,10 @@ create index if not exists messages_scheduled_at_idx on messages(scheduled_at);
 create table if not exists message_targets (
   id              uuid primary key default gen_random_uuid(),
   message_id      uuid not null references messages(id) on delete cascade,
-  app_id          uuid not null references firebase_apps(id) on delete cascade,
+  -- ON DELETE SET NULL keeps broadcast history when an app is deleted;
+  -- app_name is a snapshot so History can still label the target.
+  app_id          uuid references firebase_apps(id) on delete set null,
+  app_name        text,
   status          text not null default 'pending' check (status in ('pending', 'sent', 'failed')),
   fcm_message_id  text,
   error_message   text,

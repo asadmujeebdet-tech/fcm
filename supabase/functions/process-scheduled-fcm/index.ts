@@ -23,7 +23,9 @@ type Message = {
 
 type Target = {
   id: string;
-  app_id: string;
+  app_id: string | null;
+  app_name: string | null;
+  status: "pending" | "sent" | "failed";
 };
 
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
@@ -52,6 +54,28 @@ function hexToBytes(hex: string): Uint8Array {
 
 function normalizeTopic(topic: string): string {
   return topic.trim().replace(/^\/topics\//, "");
+}
+
+// FCM topic names may only contain letters, digits and - _ . ~ %
+function isValidTopic(topic: string): boolean {
+  return /^[A-Za-z0-9\-_.~%]+$/.test(topic);
+}
+
+// A message with no processed targets is a failure, never a silent "sent".
+function resolveMessageStatus(sent: number, failed: number): string {
+  if (sent + failed === 0) return "failed";
+  if (failed === 0) return "sent";
+  if (sent === 0) return "failed";
+  return "partial_failure";
+}
+
+// README documents FCM_CRON_SECRET; earlier deployments used CRON_SECRET.
+function cronSecret(): string {
+  const value = Deno.env.get("CRON_SECRET") ?? Deno.env.get("FCM_CRON_SECRET");
+  if (!value) {
+    throw new Error("Missing Edge Function secret: CRON_SECRET (or FCM_CRON_SECRET)");
+  }
+  return value;
 }
 
 function getPayloadSizeBytes(payload: unknown): number {
@@ -294,22 +318,96 @@ async function updateTarget(
     : new Error("Unable to persist message target status.");
 }
 
+async function failTarget(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  messageId: string,
+  target: Target,
+  app: FirebaseApp | undefined,
+  errorMessage: string,
+) {
+  console.error(
+    `[SCHEDULER] APP_FAILED messageId=${messageId} appId=${target.app_id} appName=${JSON.stringify(app?.name ?? target.app_name)} reason=${JSON.stringify(errorMessage)}`,
+  );
+  try {
+    await updateTarget(supabaseAdmin, target.id, {
+      status: "failed",
+      error_message: errorMessage,
+    });
+  } catch (error) {
+    console.error("[SCHEDULER] TARGET_STATUS_UPDATE_FAILED", error);
+  }
+}
+
+async function finalizeMessage(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  messageId: string,
+  sent: number,
+  failed: number,
+) {
+  const status = resolveMessageStatus(sent, failed);
+  const now = new Date().toISOString();
+
+  const { error } = await supabaseAdmin
+    .from("messages")
+    .update({
+      status,
+      sent_at: now,
+      total_sent: sent,
+      total_failed: failed,
+      updated_at: now,
+    })
+    .eq("id", messageId);
+
+  if (error) {
+    console.error(
+      `[SCHEDULER] MESSAGE_STATUS_UPDATE_FAILED messageId=${messageId} status=${status} error=${JSON.stringify(error.message)}`,
+    );
+  }
+
+  return status;
+}
+
 async function processMessage(
   supabaseAdmin: ReturnType<typeof createClient>,
   message: Message,
 ) {
   const { data: targets, error: targetError } = await supabaseAdmin
     .from("message_targets")
-    .select("id,app_id")
+    .select("id,app_id,app_name,status")
     .eq("message_id", message.id)
-    .eq("status", "pending")
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });
 
   if (targetError) throw targetError;
 
-  const selectedTargets = (targets ?? []) as Target[];
-  const appIds = [...new Set(selectedTargets.map((target) => target.app_id))];
+  const allTargets = (targets ?? []) as Target[];
+
+  // Totals include targets resolved by an earlier run (e.g. after a stale-job
+  // recovery), so a resumed message never reports only its second half.
+  const priorSent = allTargets.filter((t) => t.status === "sent").length;
+  const priorFailed = allTargets.filter((t) => t.status === "failed").length;
+  const selectedTargets = allTargets.filter((t) => t.status === "pending");
+
+  if (!selectedTargets.length) {
+    const status = await finalizeMessage(
+      supabaseAdmin,
+      message.id,
+      priorSent,
+      priorFailed,
+    );
+    console.warn(
+      `[SCHEDULER] NOTHING_PENDING messageId=${message.id} priorSent=${priorSent} priorFailed=${priorFailed} status=${status}`,
+    );
+    return { id: message.id, sent: priorSent, failed: priorFailed, status };
+  }
+
+  const appIds = [
+    ...new Set(
+      selectedTargets
+        .map((target) => target.app_id)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
 
   let apps: FirebaseApp[] = [];
   if (appIds.length) {
@@ -329,66 +427,60 @@ async function processMessage(
   let failed = 0;
 
   console.info(
-    `[SCHEDULER] START messageId=${message.id} selectedApps=${selectedTargets.length}`,
+    `[SCHEDULER] START messageId=${message.id} selectedApps=${selectedTargets.length} alreadySent=${priorSent} alreadyFailed=${priorFailed}`,
   );
 
   for (const target of selectedTargets) {
+    // Heartbeat: tells stale-job recovery this run is still alive.
     await supabaseAdmin
       .from("messages")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", message.id);
 
-    const app = appsById.get(target.app_id);
+    const app = target.app_id ? appsById.get(target.app_id) : undefined;
 
     if (!app) {
       failed++;
-      const errorMessage = "App not found.";
-      console.error(
-        `[SCHEDULER] APP_FAILED messageId=${message.id} appId=${target.app_id} reason=${errorMessage}`,
+      await failTarget(
+        supabaseAdmin,
+        message.id,
+        target,
+        app,
+        target.app_name
+          ? `App "${target.app_name}" no longer exists.`
+          : "App not found.",
       );
-      try {
-        await updateTarget(supabaseAdmin, target.id, {
-          status: "failed",
-          error_message: errorMessage,
-        });
-      } catch (error) {
-        console.error("[SCHEDULER] TARGET_STATUS_UPDATE_FAILED", error);
-      }
       continue;
     }
 
     if (!app.is_active) {
       failed++;
-      const errorMessage = "App is inactive.";
-      console.error(
-        `[SCHEDULER] APP_FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
-      );
-      try {
-        await updateTarget(supabaseAdmin, target.id, {
-          status: "failed",
-          error_message: errorMessage,
-        });
-      } catch (error) {
-        console.error("[SCHEDULER] TARGET_STATUS_UPDATE_FAILED", error);
-      }
+      await failTarget(supabaseAdmin, message.id, target, app, "App is inactive.");
       continue;
     }
 
     const topic = normalizeTopic(app.topic);
     if (!topic) {
       failed++;
-      const errorMessage = `No topic configured for app ${app.name}.`;
-      console.error(
-        `[SCHEDULER] APP_FAILED messageId=${message.id} appId=${app.id} reason=${errorMessage}`,
+      await failTarget(
+        supabaseAdmin,
+        message.id,
+        target,
+        app,
+        `No topic configured for app ${app.name}.`,
       );
-      try {
-        await updateTarget(supabaseAdmin, target.id, {
-          status: "failed",
-          error_message: errorMessage,
-        });
-      } catch (error) {
-        console.error("[SCHEDULER] TARGET_STATUS_UPDATE_FAILED", error);
-      }
+      continue;
+    }
+
+    if (!isValidTopic(topic)) {
+      failed++;
+      await failTarget(
+        supabaseAdmin,
+        message.id,
+        target,
+        app,
+        `Invalid topic ${JSON.stringify(topic)} for app ${app.name}. Topics may only contain letters, numbers and - _ . ~ %`,
+      );
       continue;
     }
 
@@ -440,31 +532,20 @@ async function processMessage(
     );
   }
 
-  const status =
-    failed === 0 ? "sent" : sent === 0 ? "failed" : "partial_failure";
-
-  const { error: messageUpdateError } = await supabaseAdmin
-    .from("messages")
-    .update({
-      status,
-      sent_at: new Date().toISOString(),
-      total_sent: sent,
-      total_failed: failed,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", message.id);
-
-  if (messageUpdateError) {
-    console.error(
-      `[SCHEDULER] MESSAGE_STATUS_UPDATE_FAILED messageId=${message.id} status=${status} error=${JSON.stringify(messageUpdateError.message)}`,
-    );
-  }
+  const totalSent = priorSent + sent;
+  const totalFailed = priorFailed + failed;
+  const status = await finalizeMessage(
+    supabaseAdmin,
+    message.id,
+    totalSent,
+    totalFailed,
+  );
 
   console.info(
     `[SCHEDULER] COMPLETE messageId=${message.id} apps=${selectedTargets.length} successfulApps=${sent} failedApps=${failed} status=${status}`,
   );
 
-  return { id: message.id, sent, failed, status };
+  return { id: message.id, sent: totalSent, failed: totalFailed, status };
 }
 
 Deno.serve(async (request) => {
@@ -472,7 +553,17 @@ Deno.serve(async (request) => {
     return Response.json({ error: "Method not allowed." }, { status: 405 });
   }
 
-  const expectedSecret = env("CRON_SECRET");
+  let expectedSecret: string;
+  try {
+    expectedSecret = cronSecret();
+  } catch (error) {
+    console.error("[SCHEDULER] CONFIG_ERROR", error);
+    return Response.json(
+      { success: false, error: error instanceof Error ? error.message : "Not configured." },
+      { status: 500 },
+    );
+  }
+
   const authorization = request.headers.get("authorization") ?? "";
 
   if (authorization !== `Bearer ${expectedSecret}`) {

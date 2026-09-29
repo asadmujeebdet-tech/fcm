@@ -5,6 +5,23 @@ export function normalizeTopic(topic: string): string {
   return topic.trim().replace(/^\/topics\//, "");
 }
 
+// FCM topic names may only contain letters, digits and - _ . ~ %
+const TOPIC_PATTERN = /^[A-Za-z0-9\-_.~%]+$/;
+
+export function isValidTopic(topic: string): boolean {
+  return TOPIC_PATTERN.test(topic);
+}
+
+export type FinalMessageStatus = "sent" | "partial_failure" | "failed";
+
+// A message with no processed targets is a failure, never a silent "sent".
+export function resolveMessageStatus(sent: number, failed: number): FinalMessageStatus {
+  if (sent + failed === 0) return "failed";
+  if (failed === 0) return "sent";
+  if (sent === 0) return "failed";
+  return "partial_failure";
+}
+
 export function getPayloadSizeBytes(payload: unknown): number {
   return new TextEncoder().encode(JSON.stringify(payload)).byteLength;
 }
