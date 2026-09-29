@@ -167,6 +167,7 @@ function buildMessage(message: Message, topic: string) {
   return {
     message: {
       topic,
+      android: { priority: "HIGH" },
       notification: {
         title: message.notification_title ?? "",
         body: message.notification_body ?? "",
