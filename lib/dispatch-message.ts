@@ -256,7 +256,13 @@ export async function dispatchMessage(message: Message): Promise<void> {
       console.error(
         `[BROADCAST] FAILED messageId=${message.id} appId=${target.app_id} reason=${errorMessage}`,
       );
-      await markTarget(target.id, "failed", { errorMessage });
+      try {
+        await markTarget(target.id, "failed", { errorMessage });
+      } catch (databaseError) {
+        console.error(
+          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+        );
+      }
       continue;
     }
 
@@ -266,7 +272,13 @@ export async function dispatchMessage(message: Message): Promise<void> {
       console.error(
         `[BROADCAST] FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
       );
-      await markTarget(target.id, "failed", { errorMessage });
+      try {
+        await markTarget(target.id, "failed", { errorMessage });
+      } catch (databaseError) {
+        console.error(
+          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+        );
+      }
       continue;
     }
 
@@ -277,7 +289,13 @@ export async function dispatchMessage(message: Message): Promise<void> {
       console.error(
         `[BROADCAST] FAILED messageId=${message.id} appId=${app.id} appName=${JSON.stringify(app.name)} reason=${errorMessage}`,
       );
-      await markTarget(target.id, "failed", { errorMessage });
+      try {
+        await markTarget(target.id, "failed", { errorMessage });
+      } catch (databaseError) {
+        console.error(
+          `[BROADCAST] TARGET_STATUS_UPDATE_FAILED messageId=${message.id} appId=${target.app_id} error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+        );
+      }
       continue;
     }
 
@@ -333,16 +351,22 @@ export async function dispatchMessage(message: Message): Promise<void> {
   const finalStatus =
     failed === 0 ? "sent" : sent === 0 ? "failed" : "partial_failure";
 
-  await query(
-    "UPDATE public.messages SET status=$2,sent_at=$3,total_sent=$4,total_failed=$5,updated_at=now() WHERE id=$1",
-    [
-      message.id,
-      finalStatus,
-      new Date().toISOString(),
-      sent,
-      failed,
-    ],
-  );
+  try {
+    await query(
+      "UPDATE public.messages SET status=$2,sent_at=$3,total_sent=$4,total_failed=$5,updated_at=now() WHERE id=$1",
+      [
+        message.id,
+        finalStatus,
+        new Date().toISOString(),
+        sent,
+        failed,
+      ],
+    );
+  } catch (databaseError) {
+    console.error(
+      `[BROADCAST] MESSAGE_STATUS_UPDATE_FAILED messageId=${message.id} fcmProcessingComplete=true error=${JSON.stringify(databaseError instanceof Error ? databaseError.message : databaseError)}`,
+    );
+  }
 
   console.info(
     `[BROADCAST] COMPLETE messageId=${message.id} apps=${targetsResult.rows.length} successfulApps=${sent} failedApps=${failed} status=${finalStatus}`,
