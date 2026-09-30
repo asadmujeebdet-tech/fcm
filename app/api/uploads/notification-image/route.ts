@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
 
   const extension = ALLOWED_TYPES.get(file.type)!;
   const path = `${userId}/${randomUUID()}.${extension}`;
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Image upload failed: NEXT_PUBLIC_SUPABASE_URL is not configured on the server." }, { status: 500 });
+  if (!process.env.SUPABASE_URL) {
+    return NextResponse.json({ error: "Image upload failed: SUPABASE_URL is not configured on the server." }, { status: 500 });
   }
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: "Image upload failed: SUPABASE_SERVICE_ROLE_KEY is not configured on the server." }, { status: 500 });
