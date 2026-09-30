@@ -24,6 +24,13 @@ export async function POST(req: NextRequest) {
 
   const extension = ALLOWED_TYPES.get(file.type)!;
   const path = `${userId}/${randomUUID()}.${extension}`;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Image upload failed: NEXT_PUBLIC_SUPABASE_URL is not configured on the server." }, { status: 500 });
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: "Image upload failed: SUPABASE_SERVICE_ROLE_KEY is not configured on the server." }, { status: 500 });
+  }
+
   const supabase = createAdminClient();
 
   try {
@@ -32,10 +39,11 @@ export async function POST(req: NextRequest) {
       cacheControl: "31536000",
       upsert: false,
     });
-    if (error) throw error;
+    if (error) throw new Error(`Supabase Storage: ${error.message}`);
     const { data } = supabase.storage.from("notification-images").getPublicUrl(path);
     return NextResponse.json({ url: data.publicUrl });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Image upload failed." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unknown server error.";
+    return NextResponse.json({ error: `Image upload failed: ${message}` }, { status: 500 });
   }
 }
