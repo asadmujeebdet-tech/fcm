@@ -33,7 +33,7 @@ export function ComposeClient() {
   const [showLivePreview, setShowLivePreview] = useState(false);
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
-  const [scheduleRepeat, setScheduleRepeat] = useState<"never" | "daily">("never");
+  const [scheduleRepeat, setScheduleRepeat] = useState<"never" | "daily" | "weekly" | "monthly">("never");
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleStartDate, setScheduleStartDate] = useState("");
   const [scheduleEndDate, setScheduleEndDate] = useState("");
@@ -55,14 +55,26 @@ export function ComposeClient() {
 
     const dates: string[] = [];
     const cursor = new Date(start);
+
     while (cursor <= end && dates.length < 366) {
-      dates.push(
-        `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`
-      );
+      const isDaily = scheduleRepeat === "daily";
+      const isWeekly = scheduleRepeat === "weekly";
+      const isMonthly = scheduleRepeat === "monthly";
+
+      if (
+        isDaily ||
+        (isWeekly && cursor.getDay() === start.getDay()) ||
+        (isMonthly && cursor.getDate() === start.getDate())
+      ) {
+        dates.push(
+          `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`
+        );
+      }
+
       cursor.setDate(cursor.getDate() + 1);
     }
-    if (cursor <= end) return [];
 
+    if (cursor <= end) return [];
     return dates.map((date) => `${date}T${scheduleTime}:00+05:00`);
   }
 
@@ -442,126 +454,168 @@ export function ComposeClient() {
               )}
             </Card>
 
-            <Card className="p-5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-ink2">Schedule</p>
+            <Card className="schedule-card p-5">
+              <div className="schedule-section-heading">
+                <div>
+                  <p className="text-sm font-semibold text-white">Schedule</p>
+                  <p className="mt-1 text-[10px] text-ink2">Choose when this notification should be sent.</p>
+                </div>
               </div>
 
-              <label className="mt-4 flex items-center gap-2.5 text-sm text-white">
-                <input
-                  type="checkbox"
-                  checked={scheduleEnabled}
-                  onChange={(e) => setScheduleEnabled(e.target.checked)}
-                  className="accent-signal"
-                />
-                Schedule for later
-              </label>
+              <div className="schedule-mode-grid">
+                <button
+                  type="button"
+                  className={`schedule-mode-tile${!scheduleEnabled ? " is-selected" : ""}`}
+                  onClick={() => setScheduleEnabled(false)}
+                >
+                  <span className="schedule-mode-radio"><span /></span>
+                  <span>
+                    <strong>Send Now</strong>
+                    <small>Deliver immediately</small>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`schedule-mode-tile${scheduleEnabled ? " is-selected" : ""}`}
+                  onClick={() => setScheduleEnabled(true)}
+                >
+                  <span className="schedule-mode-radio"><span /></span>
+                  <span>
+                    <strong>Schedule</strong>
+                    <small>Choose a date and time</small>
+                  </span>
+                </button>
+              </div>
 
               {scheduleEnabled && (
-                <div className="mt-3 space-y-4">
-                  <div>
-                    <label className="mb-1.5 block text-[11px] font-medium text-ink2">Repeat</label>
-                    <select
-                      value={scheduleRepeat}
-                      onChange={(e) => setScheduleRepeat(e.target.value as "never" | "daily")}
-                      className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
-                    >
-                      <option value="never">Never</option>
-                      <option value="daily">Daily</option>
-                    </select>
+                <div className="schedule-settings-card">
+                  <div className="schedule-settings-header">
+                    <div>
+                      <p className="schedule-settings-title">Schedule Settings</p>
+                      <p className="schedule-settings-subtitle">Set the delivery timing for this FCM.</p>
+                    </div>
+                    <span className="schedule-recurring-badge">
+                      <span className="schedule-badge-dot" />
+                      {scheduleRepeat === "never" ? "One-time" : "Recurring"}
+                    </span>
                   </div>
 
-                  {scheduleRepeat === "daily" ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="mb-1.5 block text-[11px] font-medium text-ink2">Start Date</label>
+                  <div className="schedule-form-grid">
+                    <div className="schedule-field schedule-field-full">
+                      <label>Repeat</label>
+                      <select
+                        value={scheduleRepeat}
+                        onChange={(e) => setScheduleRepeat(e.target.value as "never" | "daily" | "weekly" | "monthly")}
+                      >
+                        <option value="never">Never</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+
+                    {scheduleRepeat === "never" ? (
+                      <>
+                        <div className="schedule-field">
+                          <label>Date</label>
+                          <input
+                            type="date"
+                            value={scheduleDate}
+                            onChange={(e) => setScheduleDate(e.target.value)}
+                          />
+                        </div>
+                        <div className="schedule-field">
+                          <label>Send Time</label>
+                          <input
+                            type="time"
+                            value={scheduleTime}
+                            onChange={(e) => setScheduleTime(e.target.value)}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="schedule-field">
+                          <label>Start Date</label>
                           <input
                             type="date"
                             value={scheduleStartDate}
                             onChange={(e) => setScheduleStartDate(e.target.value)}
-                            className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
                           />
                         </div>
-                        <div>
-                          <label className="mb-1.5 block text-[11px] font-medium text-ink2">End Date</label>
+                        <div className="schedule-field">
+                          <label>End Date</label>
                           <input
                             type="date"
                             min={scheduleStartDate || undefined}
                             value={scheduleEndDate}
                             onChange={(e) => setScheduleEndDate(e.target.value)}
-                            className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
                           />
                         </div>
-                      </div>
+                        <div className="schedule-field schedule-field-full">
+                          <label>Send Time</label>
+                          <input
+                            type="time"
+                            value={scheduleTime}
+                            onChange={(e) => setScheduleTime(e.target.value)}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
 
+                  {scheduledPakistanIsoTimes.length > 0 && (
+                    <div className="schedule-summary-card">
+                      <div className="schedule-summary-icon"><Calendar size={15} /></div>
                       <div>
-                        <label className="mb-1.5 block text-[11px] font-medium text-ink2">Send Time</label>
-                        <input
-                          type="time"
-                          value={scheduleTime}
-                          onChange={(e) => setScheduleTime(e.target.value)}
-                          className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
-                        />
-                      </div>
-
-                      {scheduleStartDate && scheduleEndDate && scheduleTime &&
-                        new Date(`${scheduleEndDate}T00:00:00`) >= new Date(`${scheduleStartDate}T00:00:00`) && (
-                          <div className="rounded-lg border border-signal/20 bg-signal/5 px-3 py-2.5">
-                            <p className="text-[11px] font-semibold text-white">
-                              🔁 Daily at {new Date(`1970-01-01T${scheduleTime}`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                            </p>
-                            <p className="mt-0.5 text-[10px] text-ink2">
-                              From {new Date(`${scheduleStartDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                              {" "}to{" "}
-                              {new Date(`${scheduleEndDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                            </p>
-                          </div>
-                        )}
-
-                      {scheduleStartDate && scheduleEndDate &&
-                        new Date(`${scheduleEndDate}T00:00:00`) < new Date(`${scheduleStartDate}T00:00:00`) && (
-                          <p className="text-[10px] text-danger">End date must be on or after the start date.</p>
-                        )}
-                    </>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1.5 block text-[11px] font-medium text-ink2">Date</label>
-                        <input
-                          type="date"
-                          value={scheduleDate}
-                          onChange={(e) => setScheduleDate(e.target.value)}
-                          className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-[11px] font-medium text-ink2">Send Time</label>
-                        <input
-                          type="time"
-                          value={scheduleTime}
-                          onChange={(e) => setScheduleTime(e.target.value)}
-                          className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
-                        />
+                        <p>
+                          {scheduleRepeat === "never"
+                            ? "One-time delivery"
+                            : `${scheduleRepeat.charAt(0).toUpperCase() + scheduleRepeat.slice(1)} delivery`}
+                        </p>
+                        <span>
+                          {scheduleTime
+                            ? new Date(`1970-01-01T${scheduleTime}`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+                            : "Select a time"}
+                          {scheduleRepeat === "never" && scheduleDate
+                            ? ` • ${new Date(`${scheduleDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                            : scheduleRepeat !== "never" && scheduleStartDate && scheduleEndDate
+                              ? ` • ${new Date(`${scheduleStartDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${new Date(`${scheduleEndDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                              : ""}
+                        </span>
                       </div>
                     </div>
                   )}
+
+                  {scheduleRepeat !== "never" && scheduleStartDate && scheduleEndDate &&
+                    new Date(`${scheduleEndDate}T00:00:00`) < new Date(`${scheduleStartDate}T00:00:00`) && (
+                      <p className="schedule-validation-error">End date must be on or after the start date.</p>
+                    )}
                 </div>
               )}
-
             </Card>
 
-            <div className="space-y-2">
+            <div className="schedule-actions">
               {scheduleEnabled ? (
-                <Button className="w-full" disabled={!canSubmit || submitting !== null} onClick={() => handleSubmit("schedule")}>
-                  <Calendar size={15} /> {submitting === "schedule" ? "Scheduling..." : "Schedule"}
-                </Button>
+                <>
+                  <button
+                    type="button"
+                    className="schedule-cancel-button"
+                    disabled={submitting !== null}
+                    onClick={() => setScheduleEnabled(false)}
+                  >
+                    Cancel
+                  </button>
+                  <Button className="flex-1" disabled={!canSubmit || submitting !== null} onClick={() => handleSubmit("schedule")}>
+                    <Calendar size={15} /> {submitting === "schedule" ? "Scheduling..." : "Schedule FCM"}
+                  </Button>
+                </>
               ) : (
                 <Button className="w-full" disabled={!canSubmit || submitting !== null} onClick={() => handleSubmit("send_now")}>
-                  <Radio size={15} /> {submitting === "send_now" ? "Sending..." : "Send now"}
+                  <Radio size={15} /> {submitting === "send_now" ? "Sending..." : "Send Now"}
                 </Button>
               )}
-
             </div>
 
             {error && <p className="text-xs text-danger">{error}</p>}
