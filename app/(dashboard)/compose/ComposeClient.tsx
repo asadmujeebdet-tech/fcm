@@ -549,6 +549,7 @@ export function ComposeClient() {
                 </div>
               )}
 
+            </Card>
 
             <div className="space-y-2">
               {scheduleEnabled ? (
