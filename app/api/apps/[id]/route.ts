@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { query } from "@/lib/db";
+import { query, withTransaction } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/current-user";
 import { isValidTopic, normalizeTopic } from "@/lib/fcm-utils";
 export const runtime="nodejs";
