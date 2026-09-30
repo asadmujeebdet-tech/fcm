@@ -33,38 +33,37 @@ export function ComposeClient() {
   const [showLivePreview, setShowLivePreview] = useState(false);
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
-  const [scheduleTimes, setScheduleTimes] = useState<string[]>(["|||AM"]);
-  const [scheduleHourDrafts, setScheduleHourDrafts] = useState<Record<number, string>>({});
-  const [scheduleMinuteDrafts, setScheduleMinuteDrafts] = useState<Record<number, string>>({});
+  const [scheduleRepeat, setScheduleRepeat] = useState<"never" | "daily">("never");
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleStartDate, setScheduleStartDate] = useState("");
+  const [scheduleEndDate, setScheduleEndDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
 
-  function parseScheduleValue(value: string) {
-    const parts = value.split("|");
-    if (parts.length === 4) {
-      return {
-        date: parts[0],
-        hour: parts[1],
-        minute: parts[2] || "00",
-        period: (parts[3] === "PM" ? "PM" : "AM") as "AM" | "PM",
-      };
+  function buildScheduledTimes() {
+    if (!scheduleEnabled) return [];
+
+    if (scheduleRepeat === "never") {
+      if (!scheduleDate || !scheduleTime) return [];
+      return [`${scheduleDate}T${scheduleTime}:00+05:00`];
     }
-    const match = value.match(/^(\d{4}-\d{2}-\d{2}) (\d{1,2}):(\d{2}) (AM|PM)$/);
-    return match
-      ? { date: match[1], hour: match[2], minute: match[3], period: match[4] as "AM" | "PM" }
-      : { date: "", hour: "", minute: "00", period: "AM" as const };
-  }
 
-  function buildScheduleValue(date: string, hour: string, minute: string, period: string) {
-    return [date, hour, minute || "00", period || "AM"].join("|");
-  }
+    if (!scheduleStartDate || !scheduleEndDate || !scheduleTime) return [];
 
-  function scheduleValueToPakistanIso(value: string) {
-    const parsed = parseScheduleValue(value);
-    if (!parsed.date || !parsed.hour) return "";
-    let hour = Number(parsed.hour);
-    if (parsed.period === "AM") hour = hour === 12 ? 0 : hour;
-    else hour = hour === 12 ? 12 : hour + 12;
-    const hh = String(hour).padStart(2, "0");
-    return `${parsed.date}T${hh}:${parsed.minute}:00+05:00`;
+    const start = new Date(`${scheduleStartDate}T00:00:00`);
+    const end = new Date(`${scheduleEndDate}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return [];
+
+    const dates: string[] = [];
+    const cursor = new Date(start);
+    while (cursor <= end && dates.length < 366) {
+      dates.push(
+        `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`
+      );
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    if (cursor <= end) return [];
+
+    return dates.map((date) => `${date}T${scheduleTime}:00+05:00`);
   }
 
   const [submitting, setSubmitting] = useState<"send_now" | "schedule" | null>(null);
@@ -135,13 +134,7 @@ export function ComposeClient() {
     });
   }
 
-  const normalizedScheduleTimes = scheduleTimes
-    .map((time) => time.trim())
-    .filter(Boolean);
-
-  const scheduledPakistanIsoTimes = normalizedScheduleTimes
-    .map(scheduleValueToPakistanIso)
-    .filter(Boolean);
+  const scheduledPakistanIsoTimes = buildScheduledTimes();
 
   const payloadSizes = useMemo(() => {
     const hasMessageContent =
@@ -186,7 +179,12 @@ export function ComposeClient() {
     notificationTitle.trim() &&
     notificationBody.trim() &&
     !payloadTooLarge &&
-    (!scheduleEnabled || scheduledPakistanIsoTimes.length > 0);
+    (!scheduleEnabled || scheduledPakistanIsoTimes.length > 0) &&
+    (!scheduleEnabled ||
+      scheduleRepeat !== "daily" ||
+      (!!scheduleStartDate &&
+        !!scheduleEndDate &&
+        new Date(`${scheduleEndDate}T00:00:00`) >= new Date(`${scheduleStartDate}T00:00:00`)));
 
 
   async function handleImageUpload(file: File | undefined) {
@@ -460,138 +458,97 @@ export function ComposeClient() {
               </label>
 
               {scheduleEnabled && (
-                <div className="mt-3 space-y-3">
-{scheduleTimes.map((time, index) => {
-                    const parsed = parseScheduleValue(time);
-                    return (
-                      <div key={`schedule-${index}`} className="space-y-2 rounded-lg border border-border p-3">
-                        <div className="schedule-single-line">
-                          <div className="schedule-date-control">
-                            <input
-                              ref={(element) => { scheduleDateRefs.current[index] = element; }}
-                              type="date"
-                              value={parsed.date}
-                              onChange={(e) => {
-                                const next = [...scheduleTimes];
-                                next[index] = buildScheduleValue(e.target.value, parsed.hour, parsed.minute, parsed.period);
-                                setScheduleTimes(next);
-                              }}
-                              aria-label="Schedule date"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => scheduleDateRefs.current[index]?.showPicker?.()}
-                              aria-label="Open date picker"
-                              className="schedule-calendar-button"
-                            >
-                              <Calendar size={15} />
-                            </button>
-                          </div>
-                          <div className="schedule-time-control">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              maxLength={2}
-                              value={scheduleHourDrafts[index] ?? (parsed.hour ? parsed.hour.padStart(2, "0") : "")}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
-                                setScheduleHourDrafts((prev) => ({ ...prev, [index]: raw }));
-                              }}
-                              onBlur={() => {
-                                const raw = (scheduleHourDrafts[index] ?? parsed.hour ?? "").trim();
-                                if (!raw) return;
-                                const hour = Math.min(12, Math.max(1, Number(raw) || 12));
-                                const next = [...scheduleTimes];
-                                next[index] = buildScheduleValue(parsed.date, String(hour), parsed.minute, parsed.period);
-                                setScheduleTimes(next);
-                                setScheduleHourDrafts((prev) => ({ ...prev, [index]: String(hour).padStart(2, "0") }));
-                              }}
-                              placeholder="hh"
-                              aria-label="Schedule hour"
-                              className="schedule-part-input schedule-hour-input"
-                            />
-                            <span className="schedule-time-colon" aria-hidden="true">:</span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              maxLength={2}
-                              value={scheduleMinuteDrafts[index] ?? (parsed.hour ? parsed.minute : "")}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
-                                setScheduleMinuteDrafts((prev) => ({ ...prev, [index]: raw }));
-                              }}
-                              onBlur={() => {
-                                const raw = (scheduleMinuteDrafts[index] ?? parsed.minute ?? "").trim();
-                                const minute = Math.min(59, Math.max(0, Number(raw) || 0));
-                                const next = [...scheduleTimes];
-                                next[index] = buildScheduleValue(parsed.date, parsed.hour, String(minute).padStart(2, "0"), parsed.period);
-                                setScheduleTimes(next);
-                                setScheduleMinuteDrafts((prev) => ({ ...prev, [index]: String(minute).padStart(2, "0") }));
-                              }}
-                              placeholder="mm"
-                              aria-label="Schedule minute"
-                              className="schedule-part-input schedule-minute-input"
-                            />
-                            <div className="schedule-period-control" aria-label="AM or PM">
-                              <button
-                                type="button"
-                                className={`schedule-period-arrow${parsed.period === "AM" ? " is-active" : ""}`}
-                                onClick={() => {
-                                  const next = [...scheduleTimes];
-                                  next[index] = buildScheduleValue(parsed.date, parsed.hour, parsed.minute, "AM");
-                                  setScheduleTimes(next);
-                                }}
-                                aria-label="Set AM"
-                                title="AM"
-                              >
-                                <ChevronUp size={12} />
-                              </button>
-                              <span>{parsed.period}</span>
-                              <button
-                                type="button"
-                                className={`schedule-period-arrow${parsed.period === "PM" ? " is-active" : ""}`}
-                                onClick={() => {
-                                  const next = [...scheduleTimes];
-                                  next[index] = buildScheduleValue(parsed.date, parsed.hour, parsed.minute, "PM");
-                                  setScheduleTimes(next);
-                                }}
-                                aria-label="Set PM"
-                                title="PM"
-                              >
-                                <ChevronDown size={12} />
-                              </button>
-                            </div>
-                          </div>                        </div>
+                <div className="mt-3 space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-medium text-ink2">Repeat</label>
+                    <select
+                      value={scheduleRepeat}
+                      onChange={(e) => setScheduleRepeat(e.target.value as "never" | "daily")}
+                      className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
+                    >
+                      <option value="never">Never</option>
+                      <option value="daily">Daily</option>
+                    </select>
+                  </div>
 
-                        <div className="flex items-center justify-end gap-2">
-{scheduleTimes.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => setScheduleTimes((prev) => prev.filter((_, i) => i !== index))}
-                              className="text-xs text-ink2 hover:text-danger"
-                            >
-                              Remove
-                            </button>
-                          )}
+                  {scheduleRepeat === "daily" ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="mb-1.5 block text-[11px] font-medium text-ink2">Start Date</label>
+                          <input
+                            type="date"
+                            value={scheduleStartDate}
+                            onChange={(e) => setScheduleStartDate(e.target.value)}
+                            className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-[11px] font-medium text-ink2">End Date</label>
+                          <input
+                            type="date"
+                            min={scheduleStartDate || undefined}
+                            value={scheduleEndDate}
+                            onChange={(e) => setScheduleEndDate(e.target.value)}
+                            className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
+                          />
                         </div>
                       </div>
-                    );
-                  })}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScheduleTimes((prev) => [...prev, "|||AM"]);
-                      setScheduleHourDrafts((prev) => ({ ...prev, [scheduleTimes.length]: "" }));
-                      setScheduleMinuteDrafts((prev) => ({ ...prev, [scheduleTimes.length]: "" }));
-                    }}
-                    className="text-xs text-signal hover:underline"
-                  >
-                    + Add another time
-                  </button>
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-medium text-ink2">Send Time</label>
+                        <input
+                          type="time"
+                          value={scheduleTime}
+                          onChange={(e) => setScheduleTime(e.target.value)}
+                          className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
+                        />
+                      </div>
+
+                      {scheduleStartDate && scheduleEndDate && scheduleTime &&
+                        new Date(`${scheduleEndDate}T00:00:00`) >= new Date(`${scheduleStartDate}T00:00:00`) && (
+                          <div className="rounded-lg border border-signal/20 bg-signal/5 px-3 py-2.5">
+                            <p className="text-[11px] font-semibold text-white">
+                              🔁 Daily at {new Date(`1970-01-01T${scheduleTime}`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-ink2">
+                              From {new Date(`${scheduleStartDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              {" "}to{" "}
+                              {new Date(`${scheduleEndDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            </p>
+                          </div>
+                        )}
+
+                      {scheduleStartDate && scheduleEndDate &&
+                        new Date(`${scheduleEndDate}T00:00:00`) < new Date(`${scheduleStartDate}T00:00:00`) && (
+                          <p className="text-[10px] text-danger">End date must be on or after the start date.</p>
+                        )}
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-medium text-ink2">Date</label>
+                        <input
+                          type="date"
+                          value={scheduleDate}
+                          onChange={(e) => setScheduleDate(e.target.value)}
+                          className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-medium text-ink2">Send Time</label>
+                        <input
+                          type="time"
+                          value={scheduleTime}
+                          onChange={(e) => setScheduleTime(e.target.value)}
+                          className="w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-xs text-white outline-none focus:border-signal"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-            </Card>
+
 
             <div className="space-y-2">
               {scheduleEnabled ? (
