@@ -310,15 +310,12 @@ export function ComposeClient() {
           </button>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
+        <div className="compose-form-stack">
           <Card className="space-y-6 p-6">
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3">
                 <Label>Title</Label>
-                <span
-                  className={`text-[11px] font-medium ${payloadTooLarge ? "text-danger" : "text-ink2"}`}
-                  aria-live="polite"
-                >
+                <span className={`text-[12px] font-medium ${payloadTooLarge ? "text-danger" : "text-ink2"}`} aria-live="polite">
                   {maxPayloadSize.toLocaleString()} / 2,048 bytes
                 </span>
               </div>
@@ -331,289 +328,84 @@ export function ComposeClient() {
             </div>
 
             <div>
-              <div className="mb-1.5">
-                <Label>Image URL (optional)</Label>
-              </div>
+              <div className="mb-1.5"><Label>Image URL (optional)</Label></div>
               <div className="flex gap-2">
-                <Input
-                  className="min-w-0 flex-1"
-                  value={notificationImage}
-                  onChange={(e) => { const value = e.target.value; setNotificationImage(value); setPreviewImageUrl(value); setImageUploadError(null); }}
-                  placeholder="Paste image URL..."
-                />
-                <input
-                  ref={imageFileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={(e) => void handleImageUpload(e.target.files?.[0])}
-                />
-                <button
-                  type="button"
-                  onClick={() => imageFileInputRef.current?.click()}
-                  disabled={imageUploading}
-                  className="shrink-0 rounded-lg border border-border bg-surface2 px-3 text-xs font-medium text-white transition hover:bg-surface3 disabled:cursor-not-allowed disabled:opacity-60"
-                >
+                <Input className="min-w-0 flex-1" value={notificationImage} onChange={(e) => { const value = e.target.value; setNotificationImage(value); setPreviewImageUrl(value); setImageUploadError(null); }} placeholder="Paste image URL..." />
+                <input ref={imageFileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => void handleImageUpload(e.target.files?.[0])} />
+                <button type="button" onClick={() => imageFileInputRef.current?.click()} disabled={imageUploading} className="shrink-0 rounded-lg border border-border bg-surface2 px-3 text-xs font-medium text-white transition hover:bg-surface3 disabled:cursor-not-allowed disabled:opacity-60">
                   <span className="inline-flex items-center gap-1.5"><Upload size={14} />{imageUploading ? "Uploading..." : "Upload Image"}</span>
                 </button>
               </div>
               {notificationImage.trim() && (
                 <div className="mt-2 flex items-center gap-2 text-[11px] text-ink2">
                   <span className="truncate">{notificationImage}</span>
-                  <button type="button" onClick={() => { setNotificationImage(""); setPreviewImageUrl(""); }} className="shrink-0 hover:text-white" aria-label="Remove image">
-                    <X size={13} />
-                  </button>
+                  <button type="button" onClick={() => { setNotificationImage(""); setPreviewImageUrl(""); }} className="shrink-0 hover:text-white" aria-label="Remove image"><X size={13} /></button>
                 </div>
               )}
               {imageUploadError && <p className="mt-1.5 text-xs text-danger">{imageUploadError}</p>}
             </div>
           </Card>
 
-          <div className="space-y-6">
-            <Card className="p-5">
-              <div className="target-apps-heading">
-                <div>
-                  <Label>Target apps</Label>
-                  <p className="target-apps-subtitle">Choose where this notification will be delivered.</p>
-                </div>
-                <span className="target-apps-count">{selectedAppIds.size} selected</span>
+          <Card className="p-5">
+            <div className="target-apps-heading">
+              <div>
+                <Label>Target apps</Label>
+                <p className="target-apps-subtitle">Choose where this notification will be delivered.</p>
               </div>
-
-              <div className="target-app-picker" ref={appPickerRef}>
-                <button
-                  type="button"
-                  className={`target-app-picker-trigger${appSearchOpen ? " is-open" : ""}`}
-                  onClick={() => setAppSearchOpen((open) => !open)}
-                  aria-expanded={appSearchOpen}
-                >
-                  <span>Select App</span>
-                  <ChevronDown size={15} />
-                </button>
-
-                {appSearchOpen && (
-                  <div className="target-app-picker-menu">
-                    <div className="target-app-picker-search">
-                      <button
-                        type="button"
-                        className="target-app-select-all"
-                        onClick={toggleAllApps}
-                        aria-label={
-                          selectedAppIds.size === apps.length && apps.length > 0
-                            ? "Deselect all apps"
-                            : "Select all apps"
-                        }
-                        title={
-                          selectedAppIds.size === apps.length && apps.length > 0
-                            ? "Deselect all apps"
-                            : "Select all apps"
-                        }
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <Search size={14} />
-                      <input
-                        value={appSearch}
-                        onChange={(e) => setAppSearch(e.target.value)}
-                        placeholder="Search apps..."
-                        autoFocus
-                      />
-                    </div>
-
-                    <div className="target-app-picker-results">
-                      {loadingApps ? (
-                        <p className="target-app-empty">Loading apps...</p>
-                      ) : filteredApps.length === 0 ? (
-                        <p className="target-app-empty">No apps found.</p>
-                      ) : (
-                        filteredApps.map((app) => (
-                          <label key={app.id} className="target-app-row">
-                            <input
-                              type="checkbox"
-                              checked={selectedAppIds.has(app.id)}
-                              onChange={() => toggleApp(app.id)}
-                              className="target-app-checkbox"
-                            />
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface2 text-ink2">
-                              {app.app_icon_url ? (
-                                <img src={app.app_icon_url} alt={app.name} className="h-full w-full object-cover" />
-                              ) : (
-                                <Smartphone size={13} />
-                              )}
-                            </div>
-                            <span className="min-w-0 flex-1 truncate">{app.name}</span>
-                          </label>
-                        ))
-                      )}
-                    </div>
+              <span className="target-apps-count">{selectedAppIds.size} selected</span>
+            </div>
+            <div className="target-app-picker" ref={appPickerRef}>
+              <button type="button" className={`target-app-picker-trigger${appSearchOpen ? " is-open" : ""}`} onClick={() => setAppSearchOpen((open) => !open)} aria-expanded={appSearchOpen}>
+                <span>Select App</span><ChevronDown size={15} />
+              </button>
+              {appSearchOpen && (
+                <div className="target-app-picker-menu">
+                  <div className="target-app-picker-search">
+                    <button type="button" className="target-app-select-all" onClick={toggleAllApps} aria-label={selectedAppIds.size === apps.length && apps.length > 0 ? "Deselect all apps" : "Select all apps"} title={selectedAppIds.size === apps.length && apps.length > 0 ? "Deselect all apps" : "Select all apps"}><Minus size={14} /></button>
+                    <Search size={14} />
+                    <input value={appSearch} onChange={(e) => setAppSearch(e.target.value)} placeholder="Search apps..." autoFocus />
                   </div>
-                )}
-              </div>
-              {appsLoadError && <p className="mt-2 text-xs text-danger">{appsLoadError}</p>}
-              {inactiveAppCount > 0 && (
-                <p className="target-apps-subtitle mt-2">
-                  {inactiveAppCount} inactive app{inactiveAppCount === 1 ? " is" : "s are"} hidden. Activate {inactiveAppCount === 1 ? "it" : "them"} on the Apps page to include {inactiveAppCount === 1 ? "it" : "them"}.
-                </p>
-              )}
-            </Card>
-
-          </div>
-        </div>
-      </div>
-
-            <section className="schedule-card">
-              <div className="schedule-section-heading">
-                <p className="text-sm font-semibold text-white">Schedule</p>
-                <p className="mt-1 text-[10px] text-ink2">Choose when this notification should be sent.</p>
-              </div>
-
-              <div className="schedule-mode-grid">
-                <button
-                  type="button"
-                  className={`schedule-mode-tile${!scheduleEnabled ? " is-selected" : ""}`}
-                  onClick={() => setScheduleEnabled(false)}
-                >
-                  <span className="schedule-mode-radio"><span /></span>
-                  <span>
-                    <strong>Send Now</strong>
-                    <small>Deliver immediately</small>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  className={`schedule-mode-tile${scheduleEnabled ? " is-selected" : ""}`}
-                  onClick={() => setScheduleEnabled(true)}
-                >
-                  <span className="schedule-mode-radio"><span /></span>
-                  <span>
-                    <strong>Schedule</strong>
-                    <small>Choose a date and time</small>
-                  </span>
-                </button>
-              </div>
-
-              {scheduleEnabled && (
-                <div className="schedule-settings-card">
-                  <div className="schedule-form-grid">
-                    <div className="schedule-field schedule-field-full">
-                      <label>Repeat</label>
-                      <select
-                        value={scheduleRepeat}
-                        onChange={(e) => setScheduleRepeat(e.target.value as "one-time" | "daily" | "weekly" | "monthly")}
-                      >
-                        <option value="one-time">One-time</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                      </select>
-                    </div>
-
-                    {scheduleRepeat === "one-time" ? (
-                      <>
-                        <div className="schedule-field">
-                          <label>Date</label>
-                          <input
-                            type="date"
-                            value={scheduleDate}
-                            onChange={(e) => setScheduleDate(e.target.value)}
-                          />
-                        </div>
-                        <div className="schedule-field">
-                          <label>Send Time</label>
-                          <input
-                            type="time"
-                            value={scheduleTime}
-                            onChange={(e) => setScheduleTime(e.target.value)}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="schedule-field">
-                          <label>Start Date</label>
-                          <input
-                            type="date"
-                            value={scheduleStartDate}
-                            onChange={(e) => setScheduleStartDate(e.target.value)}
-                          />
-                        </div>
-                        <div className="schedule-field">
-                          <label>End Date</label>
-                          <input
-                            type="date"
-                            min={scheduleStartDate || undefined}
-                            value={scheduleEndDate}
-                            onChange={(e) => setScheduleEndDate(e.target.value)}
-                          />
-                        </div>
-                        <div className="schedule-field schedule-field-full">
-                          <label>Send Time</label>
-                          <input
-                            type="time"
-                            value={scheduleTime}
-                            onChange={(e) => setScheduleTime(e.target.value)}
-                          />
-                        </div>
-                      </>
-                    )}
+                  <div className="target-app-picker-results">
+                    {loadingApps ? <p className="target-app-empty">Loading apps...</p> : filteredApps.length === 0 ? <p className="target-app-empty">No apps found.</p> : filteredApps.map((app) => (
+                      <label key={app.id} className="target-app-row">
+                        <input type="checkbox" checked={selectedAppIds.has(app.id)} onChange={() => toggleApp(app.id)} className="target-app-checkbox" />
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface2 text-ink2">{app.app_icon_url ? <img src={app.app_icon_url} alt={app.name} className="h-full w-full object-cover" /> : <Smartphone size={13} />}</div>
+                        <span className="min-w-0 flex-1 truncate">{app.name}</span>
+                      </label>
+                    ))}
                   </div>
-
-                  {scheduledPakistanIsoTimes.length > 0 && (
-                    <div className="schedule-summary-card">
-                      <div className="schedule-summary-icon"><Calendar size={15} /></div>
-                      <div>
-                        <p>
-                          {scheduleRepeat === "one-time"
-                            ? "One-time delivery"
-                            : `${scheduleRepeat.charAt(0).toUpperCase() + scheduleRepeat.slice(1)} delivery`}
-                        </p>
-                        <span>
-                          {scheduleTime
-                            ? new Date(`1970-01-01T${scheduleTime}`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-                            : "Select a time"}
-                          {scheduleRepeat === "one-time" && scheduleDate
-                            ? ` • ${new Date(`${scheduleDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-                            : scheduleRepeat !== "one-time" && scheduleStartDate && scheduleEndDate
-                              ? ` • ${new Date(`${scheduleStartDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${new Date(`${scheduleEndDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-                              : ""}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {scheduleRepeat !== "one-time" && scheduleStartDate && scheduleEndDate &&
-                    new Date(`${scheduleEndDate}T00:00:00`) < new Date(`${scheduleStartDate}T00:00:00`) && (
-                      <p className="schedule-validation-error">End date must be on or after the start date.</p>
-                    )}
                 </div>
-              )}
-            </section>
-
-            <div className="schedule-actions">
-              {scheduleEnabled ? (
-                <>
-                  <button
-                    type="button"
-                    className="schedule-cancel-button"
-                    disabled={submitting !== null}
-                    onClick={() => setScheduleEnabled(false)}
-                  >
-                    Cancel
-                  </button>
-                  <Button className="flex-1" disabled={!canSubmit || submitting !== null} onClick={() => handleSubmit("schedule")}>
-                    <Calendar size={15} /> {submitting === "schedule" ? "Scheduling..." : "Schedule FCM"}
-                  </Button>
-                </>
-              ) : (
-                <Button className="w-full" disabled={!canSubmit || submitting !== null} onClick={() => handleSubmit("send_now")}>
-                  <Radio size={15} /> {submitting === "send_now" ? "Sending..." : "Send Now"}
-                </Button>
               )}
             </div>
+            {appsLoadError && <p className="mt-2 text-xs text-danger">{appsLoadError}</p>}
+            {inactiveAppCount > 0 && <p className="target-apps-subtitle mt-2">{inactiveAppCount} inactive app{inactiveAppCount === 1 ? " is" : "s are"} hidden. Activate {inactiveAppCount === 1 ? "it" : "them"} on the Apps page to include {inactiveAppCount === 1 ? "it" : "them"}.</p>}
+          </Card>
 
-            {error && <p className="text-xs text-danger">{error}</p>}
-            {successMessage && <p className="text-xs text-wave">{successMessage}</p>}
+          <section className="schedule-card">
+            <div className="schedule-section-heading"><p className="text-sm font-semibold text-white">Schedule</p><p className="mt-1 text-[10px] text-ink2">Choose when this notification should be sent.</p></div>
+            <div className="schedule-mode-grid">
+              <button type="button" className={`schedule-mode-tile${!scheduleEnabled ? " is-selected" : ""}`} onClick={() => setScheduleEnabled(false)}><span className="schedule-mode-radio"><span /></span><span><strong>Send Now</strong><small>Deliver immediately</small></span></button>
+              <button type="button" className={`schedule-mode-tile${scheduleEnabled ? " is-selected" : ""}`} onClick={() => setScheduleEnabled(true)}><span className="schedule-mode-radio"><span /></span><span><strong>Schedule</strong><small>Choose a date and time</small></span></button>
+            </div>
+            {scheduleEnabled && (
+              <div className="schedule-settings-card">
+                <div className="schedule-form-grid">
+                  <div className="schedule-field schedule-field-full"><label>Repeat</label><select value={scheduleRepeat} onChange={(e) => setScheduleRepeat(e.target.value as "one-time" | "daily" | "weekly" | "monthly")}><option value="one-time">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+                  {scheduleRepeat === "one-time" ? <><div className="schedule-field"><label>Date</label><input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} /></div><div className="schedule-field"><label>Send Time</label><input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} /></div></> : <><div className="schedule-field"><label>Start Date</label><input type="date" value={scheduleStartDate} onChange={(e) => setScheduleStartDate(e.target.value)} /></div><div className="schedule-field"><label>End Date</label><input type="date" min={scheduleStartDate || undefined} value={scheduleEndDate} onChange={(e) => setScheduleEndDate(e.target.value)} /></div><div className="schedule-field schedule-field-full"><label>Send Time</label><input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} /></div></>}
+                </div>
+                {scheduledPakistanIsoTimes.length > 0 && <div className="schedule-summary-card"><div className="schedule-summary-icon"><Calendar size={15} /></div><div><p>{scheduleRepeat === "one-time" ? "Once delivery" : `${scheduleRepeat.charAt(0).toUpperCase() + scheduleRepeat.slice(1)} delivery`}</p><span>{scheduleTime ? new Date(`1970-01-01T${scheduleTime}`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "Select a time"}{scheduleRepeat === "one-time" && scheduleDate ? ` • ${new Date(`${scheduleDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : scheduleRepeat !== "one-time" && scheduleStartDate && scheduleEndDate ? ` • ${new Date(`${scheduleStartDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${new Date(`${scheduleEndDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}</span></div></div>}
+                {scheduleRepeat !== "one-time" && scheduleStartDate && scheduleEndDate && new Date(`${scheduleEndDate}T00:00:00`) < new Date(`${scheduleStartDate}T00:00:00`) && <p className="schedule-validation-error">End date must be on or after the start date.</p>}
+              </div>
+            )}
+          </section>
+        </div>
 
+        <div className="schedule-actions compose-actions">
+          {scheduleEnabled ? <><button type="button" className="schedule-cancel-button" disabled={submitting !== null} onClick={() => setScheduleEnabled(false)}>Cancel</button><Button className="flex-1" disabled={!canSubmit || submitting !== null} onClick={() => handleSubmit("schedule")}><Calendar size={15} /> {submitting === "schedule" ? "Scheduling..." : "Schedule FCM"}</Button></> : <Button className="w-full" disabled={!canSubmit || submitting !== null} onClick={() => handleSubmit("send_now")}><Radio size={15} /> {submitting === "send_now" ? "Sending..." : "Send Now"}</Button>}
+        </div>
+
+        {error && <p className="text-xs text-danger">{error}</p>}
+        {successMessage && <p className="text-xs text-wave">{successMessage}</p>}
 
       {showLivePreview && (
         <div className="live-preview-overlay" role="dialog" aria-modal="true" aria-label="Live notification preview">
