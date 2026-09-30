@@ -406,6 +406,7 @@ export function ComposeClient() {
 
         {error && <p className="text-xs text-danger">{error}</p>}
         {successMessage && <p className="text-xs text-wave">{successMessage}</p>}
+      </div>
 
       {showLivePreview && (
         <div className="live-preview-overlay" role="dialog" aria-modal="true" aria-label="Live notification preview">
