@@ -33,7 +33,7 @@ export function ComposeClient() {
   const [showLivePreview, setShowLivePreview] = useState(false);
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
-  const [scheduleRepeat, setScheduleRepeat] = useState<"never" | "daily" | "weekly" | "monthly">("never");
+  const [scheduleRepeat, setScheduleRepeat] = useState<"one-time" | "daily" | "weekly" | "monthly">("one-time");
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleStartDate, setScheduleStartDate] = useState("");
   const [scheduleEndDate, setScheduleEndDate] = useState("");
@@ -42,7 +42,7 @@ export function ComposeClient() {
   function buildScheduledTimes() {
     if (!scheduleEnabled) return [];
 
-    if (scheduleRepeat === "never") {
+    if (scheduleRepeat === "one-time") {
       if (!scheduleDate || !scheduleTime) return [];
       return [`${scheduleDate}T${scheduleTime}:00+05:00`];
     }
@@ -454,12 +454,14 @@ export function ComposeClient() {
               )}
             </Card>
 
-            <Card className="schedule-card p-5">
+          </div>
+        </div>
+      </div>
+
+            <section className="schedule-card">
               <div className="schedule-section-heading">
-                <div>
-                  <p className="text-sm font-semibold text-white">Schedule</p>
-                  <p className="mt-1 text-[10px] text-ink2">Choose when this notification should be sent.</p>
-                </div>
+                <p className="text-sm font-semibold text-white">Schedule</p>
+                <p className="mt-1 text-[10px] text-ink2">Choose when this notification should be sent.</p>
               </div>
 
               <div className="schedule-mode-grid">
@@ -490,32 +492,21 @@ export function ComposeClient() {
 
               {scheduleEnabled && (
                 <div className="schedule-settings-card">
-                  <div className="schedule-settings-header">
-                    <div>
-                      <p className="schedule-settings-title">Schedule Settings</p>
-                      <p className="schedule-settings-subtitle">Set the delivery timing for this FCM.</p>
-                    </div>
-                    <span className="schedule-recurring-badge">
-                      <span className="schedule-badge-dot" />
-                      {scheduleRepeat === "never" ? "One-time" : "Recurring"}
-                    </span>
-                  </div>
-
                   <div className="schedule-form-grid">
                     <div className="schedule-field schedule-field-full">
                       <label>Repeat</label>
                       <select
                         value={scheduleRepeat}
-                        onChange={(e) => setScheduleRepeat(e.target.value as "never" | "daily" | "weekly" | "monthly")}
+                        onChange={(e) => setScheduleRepeat(e.target.value as "one-time" | "daily" | "weekly" | "monthly")}
                       >
-                        <option value="never">Never</option>
+                        <option value="one-time">One-time</option>
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>
                       </select>
                     </div>
 
-                    {scheduleRepeat === "never" ? (
+                    {scheduleRepeat === "one-time" ? (
                       <>
                         <div className="schedule-field">
                           <label>Date</label>
@@ -570,7 +561,7 @@ export function ComposeClient() {
                       <div className="schedule-summary-icon"><Calendar size={15} /></div>
                       <div>
                         <p>
-                          {scheduleRepeat === "never"
+                          {scheduleRepeat === "one-time"
                             ? "One-time delivery"
                             : `${scheduleRepeat.charAt(0).toUpperCase() + scheduleRepeat.slice(1)} delivery`}
                         </p>
@@ -578,9 +569,9 @@ export function ComposeClient() {
                           {scheduleTime
                             ? new Date(`1970-01-01T${scheduleTime}`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
                             : "Select a time"}
-                          {scheduleRepeat === "never" && scheduleDate
+                          {scheduleRepeat === "one-time" && scheduleDate
                             ? ` • ${new Date(`${scheduleDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-                            : scheduleRepeat !== "never" && scheduleStartDate && scheduleEndDate
+                            : scheduleRepeat !== "one-time" && scheduleStartDate && scheduleEndDate
                               ? ` • ${new Date(`${scheduleStartDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${new Date(`${scheduleEndDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                               : ""}
                         </span>
@@ -588,13 +579,13 @@ export function ComposeClient() {
                     </div>
                   )}
 
-                  {scheduleRepeat !== "never" && scheduleStartDate && scheduleEndDate &&
+                  {scheduleRepeat !== "one-time" && scheduleStartDate && scheduleEndDate &&
                     new Date(`${scheduleEndDate}T00:00:00`) < new Date(`${scheduleStartDate}T00:00:00`) && (
                       <p className="schedule-validation-error">End date must be on or after the start date.</p>
                     )}
                 </div>
               )}
-            </Card>
+            </section>
 
             <div className="schedule-actions">
               {scheduleEnabled ? (
@@ -620,9 +611,7 @@ export function ComposeClient() {
 
             {error && <p className="text-xs text-danger">{error}</p>}
             {successMessage && <p className="text-xs text-wave">{successMessage}</p>}
-          </div>
-        </div>
-      </div>
+
 
       {showLivePreview && (
         <div className="live-preview-overlay" role="dialog" aria-modal="true" aria-label="Live notification preview">
