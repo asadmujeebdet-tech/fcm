@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown, ChevronUp, Minus } from "lucide-react";
+import { Search, Radio, Calendar, Smartphone, Eye, ChevronDown, ChevronUp, Minus, Upload, X } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea } from "@/components/ui/Field";
@@ -26,6 +26,9 @@ export function ComposeClient() {
   const [notificationTitle, setNotificationTitle] = useState("");
   const [notificationBody, setNotificationBody] = useState("");
   const [notificationImage, setNotificationImage] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
   const [showLivePreview, setShowLivePreview] = useState(false);
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
@@ -178,6 +181,34 @@ export function ComposeClient() {
     !payloadTooLarge &&
     (!scheduleEnabled || scheduledPakistanIsoTimes.length > 0);
 
+
+  async function handleImageUpload(file: File | undefined) {
+    if (!file) return;
+    setImageUploadError(null);
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setImageUploadError("Use JPG, PNG, or WEBP images.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageUploadError("Image must be 5 MB or smaller.");
+      return;
+    }
+    setImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/uploads/notification-image", { method: "POST", body: formData });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.url) throw new Error(data?.error ?? "Image upload failed.");
+      setNotificationImage(data.url);
+    } catch (e) {
+      setImageUploadError(e instanceof Error ? e.message : "Image upload failed.");
+    } finally {
+      setImageUploading(false);
+      if (imageFileInputRef.current) imageFileInputRef.current.value = "";
+    }
+  }
+
   async function handleSubmit(action: "send_now" | "schedule") {
     setSubmitting(action);
     setError(null);
@@ -280,11 +311,38 @@ export function ComposeClient() {
                   {maxPayloadSize.toLocaleString()} / 2,048 bytes
                 </span>
               </div>
-              <Input
-                value={notificationImage}
-                onChange={(e) => setNotificationImage(e.target.value)}
-                placeholder="https://..."
-              />
+              <div className="flex gap-2">
+                <Input
+                  className="min-w-0 flex-1"
+                  value={notificationImage}
+                  onChange={(e) => { setNotificationImage(e.target.value); setImageUploadError(null); }}
+                  placeholder="Paste image URL..."
+                />
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => void handleImageUpload(e.target.files?.[0])}
+                />
+                <button
+                  type="button"
+                  onClick={() => imageFileInputRef.current?.click()}
+                  disabled={imageUploading}
+                  className="shrink-0 rounded-lg border border-border bg-surface2 px-3 text-xs font-medium text-white transition hover:bg-surface3 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="inline-flex items-center gap-1.5"><Upload size={14} />{imageUploading ? "Uploading..." : "Upload Image"}</span>
+                </button>
+              </div>
+              {notificationImage.trim() && (
+                <div className="mt-2 flex items-center gap-2 text-[11px] text-ink2">
+                  <span className="truncate">{notificationImage}</span>
+                  <button type="button" onClick={() => setNotificationImage("")} className="shrink-0 hover:text-white" aria-label="Remove image">
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+              {imageUploadError && <p className="mt-1.5 text-xs text-danger">{imageUploadError}</p>}
             </div>
           </Card>
 
