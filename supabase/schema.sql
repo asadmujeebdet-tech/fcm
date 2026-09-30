@@ -67,9 +67,9 @@ create index if not exists messages_scheduled_at_idx on messages(scheduled_at);
 create table if not exists message_targets (
   id              uuid primary key default gen_random_uuid(),
   message_id      uuid not null references messages(id) on delete cascade,
-  -- ON DELETE SET NULL keeps broadcast history when an app is deleted;
-  -- app_name is a snapshot so History can still label the target.
-  app_id          uuid references firebase_apps(id) on delete set null,
+  -- App deletion is handled transactionally by the app DELETE API: only that
+  -- app's target rows are removed, while other apps on the same message remain.
+  app_id          uuid references firebase_apps(id) on delete cascade,
   app_name        text,
   status          text not null default 'pending' check (status in ('pending', 'sent', 'failed')),
   fcm_message_id  text,
