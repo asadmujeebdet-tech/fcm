@@ -313,7 +313,15 @@ export function ComposeClient() {
         <div className="grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
           <Card className="space-y-6 p-6">
             <div>
-              <Label>Title</Label>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <Label>Title</Label>
+                <span
+                  className={`text-[11px] font-medium ${payloadTooLarge ? "text-danger" : "text-ink2"}`}
+                  aria-live="polite"
+                >
+                  {maxPayloadSize.toLocaleString()} / 2,048 bytes
+                </span>
+              </div>
               <Input value={notificationTitle} onChange={(e) => setNotificationTitle(e.target.value)} />
             </div>
 
@@ -323,14 +331,8 @@ export function ComposeClient() {
             </div>
 
             <div>
-              <div className="mb-1.5 flex items-center justify-between gap-3">
+              <div className="mb-1.5">
                 <Label>Image URL (optional)</Label>
-                <span
-                  className={`text-[11px] font-medium ${payloadTooLarge ? "text-danger" : "text-ink2"}`}
-                  aria-live="polite"
-                >
-                  {maxPayloadSize.toLocaleString()} / 2,048 bytes
-                </span>
               </div>
               <div className="flex gap-2">
                 <Input
