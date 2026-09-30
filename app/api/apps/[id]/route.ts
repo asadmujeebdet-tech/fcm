@@ -17,6 +17,68 @@ export async function PATCH(req:NextRequest,{params}:{params:{id:string}}){
 }
 export async function DELETE(_req:NextRequest,{params}:{params:{id:string}}){
  const userId=await getCurrentUserId();if(!userId)return NextResponse.json({error:"Unauthorized"},{status:401});
- try{const r=await query("DELETE FROM public.firebase_apps WHERE id=$1 AND user_id=$2",[params.id,userId]);if(r.rowCount===0)return NextResponse.json({error:"Not found"},{status:404});return NextResponse.json({success:true});}
- catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
+ try{
+   const result=await withTransaction(async client=>{
+     const app=await client.query<{id:string}>(`SELECT id FROM public.firebase_apps WHERE id=$1 AND user_id=$2 FOR UPDATE`,[params.id,userId]);
+     if(!app.rows[0])return null;
+
+     const affected=await client.query<{message_id:string}>(`
+       SELECT DISTINCT message_id
+       FROM public.message_targets
+       WHERE app_id=$1
+     `,[params.id]);
+
+     // Remove only this app's target rows. A multi-app broadcast remains intact
+     // for every other app that was part of the same message.
+     await client.query(`DELETE FROM public.message_targets WHERE app_id=$1`,[params.id]);
+     await client.query(`DELETE FROM public.firebase_apps WHERE id=$1 AND user_id=$2`,[params.id,userId]);
+
+     for(const row of affected.rows){
+       const messageId=row.message_id;
+       const totals=await client.query<{total_apps_targeted:string;total_sent:string;total_failed:string}>(`
+         SELECT
+           COUNT(*)::text AS total_apps_targeted,
+           COUNT(*) FILTER (WHERE status='sent')::text AS total_sent,
+           COUNT(*) FILTER (WHERE status='failed')::text AS total_failed
+         FROM public.message_targets
+         WHERE message_id=$1
+       `,[messageId]);
+
+       const total=totals.rows[0];
+       const targeted=Number(total?.total_apps_targeted??0);
+       if(targeted===0){
+         // If the deleted app was the only target, the broadcast no longer
+         // represents a dashboard record and is removed as well.
+         await client.query(`DELETE FROM public.messages WHERE id=$1 AND user_id=$2`,[messageId,userId]);
+         continue;
+       }
+
+       const sent=Number(total?.total_sent??0);
+       const failed=Number(total?.total_failed??0);
+       const status =
+         sent===0 && failed===0 ? "scheduled" :
+         failed===0 ? "sent" :
+         sent===0 ? "failed" :
+         "partial_failure";
+
+       await client.query(`
+         UPDATE public.messages
+         SET total_apps_targeted=$2,
+             total_sent=$3,
+             total_failed=$4,
+             status=CASE
+               WHEN status IN ('draft','scheduled','sending','canceled') THEN status
+               ELSE $5
+             END,
+             updated_at=now()
+         WHERE id=$1 AND user_id=$6
+       `,[messageId,targeted,sent,failed,status,userId]);
+     }
+
+     return {affectedMessages:affected.rowCount??0};
+   });
+
+   if(!result)return NextResponse.json({error:"Not found"},{status:404});
+   return NextResponse.json({success:true,affectedMessages:result.affectedMessages});
+ }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
