@@ -96,6 +96,12 @@ export function ComposeClient() {
   }, [appSearchOpen]);
 
   useEffect(() => {
+    return () => {
+      if (previewImageUrl.startsWith("blob:")) URL.revokeObjectURL(previewImageUrl);
+    };
+  }, [previewImageUrl]);
+
+  useEffect(() => {
     if (!showLivePreview) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -203,8 +209,9 @@ export function ComposeClient() {
       const res = await fetch("/api/uploads/notification-image", { method: "POST", body: formData });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.url) throw new Error(data?.error ?? "Image upload failed.");
+      // Keep the local blob URL for Live Preview. The uploaded public URL is used for FCM,
+      // while the local preview avoids intermittent CDN/browser image-loading failures.
       setNotificationImage(data.url);
-      setPreviewImageUrl(data.url);
     } catch (e) {
       setImageUploadError(e instanceof Error ? e.message : "Image upload failed.");
     } finally {
