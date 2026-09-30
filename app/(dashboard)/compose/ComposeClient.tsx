@@ -26,6 +26,7 @@ export function ComposeClient() {
   const [notificationTitle, setNotificationTitle] = useState("");
   const [notificationBody, setNotificationBody] = useState("");
   const [notificationImage, setNotificationImage] = useState("");
+  const [previewImageUrl, setPreviewImageUrl] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
@@ -194,6 +195,8 @@ export function ComposeClient() {
       return;
     }
     setImageUploading(true);
+    const localPreviewUrl = URL.createObjectURL(file);
+    setPreviewImageUrl(localPreviewUrl);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -201,6 +204,7 @@ export function ComposeClient() {
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.url) throw new Error(data?.error ?? "Image upload failed.");
       setNotificationImage(data.url);
+      setPreviewImageUrl(data.url);
     } catch (e) {
       setImageUploadError(e instanceof Error ? e.message : "Image upload failed.");
     } finally {
@@ -315,7 +319,7 @@ export function ComposeClient() {
                 <Input
                   className="min-w-0 flex-1"
                   value={notificationImage}
-                  onChange={(e) => { setNotificationImage(e.target.value); setImageUploadError(null); }}
+                  onChange={(e) => { const value = e.target.value; setNotificationImage(value); setPreviewImageUrl(value); setImageUploadError(null); }}
                   placeholder="Paste image URL..."
                 />
                 <input
@@ -337,7 +341,7 @@ export function ComposeClient() {
               {notificationImage.trim() && (
                 <div className="mt-2 flex items-center gap-2 text-[11px] text-ink2">
                   <span className="truncate">{notificationImage}</span>
-                  <button type="button" onClick={() => setNotificationImage("")} className="shrink-0 hover:text-white" aria-label="Remove image">
+                  <button type="button" onClick={() => { setNotificationImage(""); setPreviewImageUrl(""); }} className="shrink-0 hover:text-white" aria-label="Remove image">
                     <X size={13} />
                   </button>
                 </div>
@@ -643,9 +647,9 @@ export function ComposeClient() {
                       </div>
                     </div>
 
-                    {notificationImage.trim() ? (
+                    {(previewImageUrl.trim() || notificationImage.trim()) ? (
                       <img
-                        src={notificationImage.trim()}
+                        src={(previewImageUrl.trim() || notificationImage.trim())}
                         alt=""
                         className="whatsapp-icon live-preview-image"
                         onError={(event) => {
