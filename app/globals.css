@@ -1627,9 +1627,12 @@ body {
 /* Scheduler UI — matched to the approved standalone HTML mockup */
 .schedule-card {
   width: 100%;
-  padding: 20px 0 0;
-  border: 0;
-  background: transparent;
+  max-width: 900px;
+  margin: 22px auto 0;
+  padding: 18px 20px;
+  border: 1px solid #252B38;
+  border-radius: 14px;
+  background: #0F131B;
   color: #EDEEF3;
 }
 
@@ -1651,7 +1654,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 .schedule-mode-tile {
@@ -1676,9 +1679,26 @@ body {
 }
 
 .schedule-mode-tile.is-selected {
-  border-color: #FF9142;
-  background: rgba(255,145,66,.07);
-  box-shadow: 0 0 0 2px rgba(255,145,66,.08);
+  border-color: #34D399;
+  background: rgba(52,211,153,.07);
+  box-shadow: 0 0 0 2px rgba(52,211,153,.08);
+}
+.schedule-mode-tile.is-selected:nth-child(2) {
+  border-color: #60A5FA;
+  background: rgba(96,165,250,.07);
+  box-shadow: 0 0 0 2px rgba(96,165,250,.08);
+}
+.schedule-mode-tile.is-selected:first-child .schedule-mode-radio {
+  border-color: #34D399;
+}
+.schedule-mode-tile.is-selected:first-child .schedule-mode-radio span {
+  background: #34D399;
+}
+.schedule-mode-tile.is-selected:nth-child(2) .schedule-mode-radio {
+  border-color: #60A5FA;
+}
+.schedule-mode-tile.is-selected:nth-child(2) .schedule-mode-radio span {
+  background: #60A5FA;
 }
 
 .schedule-mode-tile strong {
