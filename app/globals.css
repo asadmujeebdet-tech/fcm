@@ -1887,3 +1887,31 @@ body {
     align-items: flex-start;
   }
 }
+
+
+/* Refined Compose alignment */
+.compose-form-stack {
+  width: min(900px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.compose-form-stack > .schedule-card {
+  max-width: none;
+  margin: 0;
+}
+.compose-actions {
+  width: min(900px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+.target-app-picker-trigger { font-size: 12px; }
+.target-apps-subtitle { font-size: 11px; }
+.target-apps-count { font-size: 11px; }
+.schedule-field label { font-size: 11px; }
+.schedule-field input,
+.schedule-field select { font-size: 12px !important; }
+.schedule-section-heading p:first-child { font-size: 15px !important; }
+.schedule-section-heading p:last-child { font-size: 11px !important; }
+.schedule-mode-tile strong { font-size: 13px; }
+.schedule-mode-tile small { font-size: 11px; }
