@@ -23,38 +23,38 @@ export async function POST(req: NextRequest) {
   try {
     const result=await withTransaction(async(client)=>{
       const target=await client.query<{id:string;message_id:string;app_id:string|null}>(
-        \`SELECT mt.id,mt.message_id,mt.app_id FROM public.message_targets mt
+        `SELECT mt.id,mt.message_id,mt.app_id FROM public.message_targets mt
          JOIN public.messages m ON m.id=mt.message_id
-         WHERE mt.id=$1 AND m.analytics_label=$2 LIMIT 1\`,
+         WHERE mt.id=$1 AND m.analytics_label=$2 LIMIT 1`,
         [input.targetId,input.analyticsLabel]);
       if(!target.rows[0])throw new Error("Analytics target not found.");
       const t=target.rows[0];
 
       const inserted=await client.query<{id:string}>(
-        \`INSERT INTO public.fcm_analytics_events
+        `INSERT INTO public.fcm_analytics_events
           (message_id,message_target_id,app_id,analytics_label,installation_id,event_type,event_timestamp,app_version,android_version,device_model,metadata)
          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-         ON CONFLICT (message_target_id,installation_id,event_type) DO NOTHING RETURNING id\`,
+         ON CONFLICT (message_target_id,installation_id,event_type) DO NOTHING RETURNING id`,
         [t.message_id,t.id,t.app_id,input.analyticsLabel,input.installationId,input.event,
          input.eventTimestamp ?? new Date().toISOString(),input.appVersion ?? null,input.androidVersion ?? null,
          input.deviceModel ?? null,input.metadata ? JSON.stringify(input.metadata) : null]);
       if(!inserted.rows[0])return {duplicate:true,event:input.event};
 
       await client.query(
-        \`INSERT INTO public.fcm_analytics_summary(message_target_id,message_id,app_id)
-         VALUES($1,$2,$3) ON CONFLICT (message_target_id) DO NOTHING\`,
+        `INSERT INTO public.fcm_analytics_summary(message_target_id,message_id,app_id)
+         VALUES($1,$2,$3) ON CONFLICT (message_target_id) DO NOTHING`,
         [t.id,t.message_id,t.app_id]);
 
       if(input.event==="received"){
         await client.query(
-          \`UPDATE public.fcm_analytics_summary
+          `UPDATE public.fcm_analytics_summary
            SET received_count=received_count+1,delivered_count=delivered_count+1,updated_at=now()
-           WHERE message_target_id=$1\`,[t.id]);
+           WHERE message_target_id=$1`,[t.id]);
       }else{
         const column=({shown:"shown_count",opened:"opened_count",dismissed:"dismissed_count"} as const)[input.event];
         await client.query(
-          \`UPDATE public.fcm_analytics_summary SET \${column}=\${column}+1,updated_at=now()
-           WHERE message_target_id=$1\`,[t.id]);
+          `UPDATE public.fcm_analytics_summary SET ${column}=${column}+1,updated_at=now()
+           WHERE message_target_id=$1`,[t.id]);
       }
       return {duplicate:false,event:input.event};
     });
