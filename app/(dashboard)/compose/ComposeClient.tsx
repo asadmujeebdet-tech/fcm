@@ -165,6 +165,13 @@ export function ComposeClient() {
       const payload = {
         message: {
           topic: app.topic?.trim() ?? "",
+          data: {
+            analytics_label: "fcm_0000000000000000",
+            analytics_target_id: "00000000-0000-0000-0000-000000000000",
+          },
+          fcm_options: {
+            analytics_label: "fcm_0000000000000000",
+          },
           android: {
             priority: "HIGH",
           },
