@@ -26,7 +26,6 @@ type Target = {
   id: string;
   app_id: string | null;
   app_name: string | null;
-  analytics_label: string | null;
   status: "pending" | "sent" | "failed";
 };
 
