@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Ban, Copy, Check } from "lucide-react";
+import { X, Ban, Copy, Check, BarChart3, Radio } from "lucide-react";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Message, MessageApp, MessageTarget } from "@/types/database";
 
 type TargetRow = MessageTarget & { firebase_apps: { name:string; app_icon_url?:string|null }|null };
+type Analytics = {
+ sent:number; failed:number; delivered:number; received:number; shown:number; opened:number; dismissed:number;
+ deliveryRate:number|null; showRate:number|null; openRate:number|null; dismissRate:number|null;
+ updatedAt:string|null;
+ apps:Array<{target_id:string;app_id:string|null;app_name:string|null;app_icon_url:string|null;sent:number;failed:number;delivered:number;received:number;shown:number;opened:number;dismissed:number;}>;
+};
 
 function formatPakistanDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -57,15 +63,28 @@ export function HistoryClient(){
  const [selected,setSelected]=useState<Message|null>(null);
  const [targets,setTargets]=useState<TargetRow[]>([]);
  const [loadingTargets,setLoadingTargets]=useState(false);
+ const [analytics,setAnalytics]=useState<Analytics|null>(null);
+ const [analyticsLoading,setAnalyticsLoading]=useState(false);
+
+ async function loadAnalytics(messageId:string){
+   setAnalyticsLoading(true);
+   try{
+     const res=await fetch("/api/messages/"+messageId+"/analytics",{cache:"no-store"});
+     const data=await res.json();
+     if(res.ok)setAnalytics(data);
+   }finally{setAnalyticsLoading(false);}
+ }
 
  async function openDetail(message:Message){
    setSelected(message);
+   setAnalytics(null);
    setLoadingTargets(true);
    const res=await fetch(`/api/messages/${message.id}`);
    const data=await res.json();
    setSelected(data.message??message);
    setTargets(data.targets??[]);
    setLoadingTargets(false);
+   loadAnalytics(message.id);
  }
 
  async function loadMessages(){
@@ -80,6 +99,11 @@ export function HistoryClient(){
  }
 
  useEffect(()=>{loadMessages();},[]);
+ useEffect(()=>{
+   if(!selected?.id)return;
+   const timer=setInterval(()=>loadAnalytics(selected.id),3000);
+   return()=>clearInterval(timer);
+ },[selected?.id]);
 
  async function cancelMessage(message:Message){
    if(!confirm("Cancel this scheduled message?"))return;
@@ -105,6 +129,33 @@ export function HistoryClient(){
       </div>
       <div className="mt-5 border-t border-border pt-4"><div className="mb-3 flex items-center justify-between"><p className="text-xs font-medium text-white">Apps & delivery</p>{["draft","scheduled"].includes(selected.status)&&<button onClick={()=>cancelMessage(selected)} className="flex items-center gap-1 text-xs text-danger hover:underline"><Ban size={11}/> Cancel</button>}</div>
       {loadingTargets?<p className="text-xs text-ink2">Loading...</p>:<div className="space-y-2">{targets.map(t=><div key={t.id} className="rounded-lg border border-border p-3"><div className="flex min-w-0 items-center gap-2">{t.firebase_apps?.app_icon_url?<img src={t.firebase_apps.app_icon_url} alt="" className="h-7 w-7 rounded-md object-cover"/>:<div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface2 text-[9px] text-white">{t.firebase_apps?.name?.slice(0,1).toUpperCase()??"?"}</div>}<span className="truncate text-xs text-white">{t.firebase_apps?.name??"Unknown app"}</span><span className={`ml-auto shrink-0 text-[10px] font-semibold uppercase tracking-wide ${t.status==="failed"?"text-danger":"text-ink2"}`}>{t.status==="sent"?"accepted":t.status}</span></div>{t.error_message&&<p className="mt-1 text-xs text-danger">{t.error_message}</p>}</div>)}</div>}
+      </div>
+      <div className="mt-5 border-t border-border pt-4">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="flex items-center gap-2 text-xs font-medium text-white"><BarChart3 size={13}/> Live analytics</p>
+          <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Radio size={9}/> LIVE</span>
+        </div>
+        {analyticsLoading&&!analytics?<p className="text-xs text-ink2">Loading analytics...</p>:analytics?<div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ["Sent",analytics.sent],["Delivered",analytics.delivered],["Shown",analytics.shown],["Opened",analytics.opened],
+            ].map(([label,value])=><div key={String(label)} className="rounded-lg border border-border bg-surface2/30 p-3"><p className="text-[10px] uppercase tracking-wide text-ink2">{label}</p><p className="mt-1 text-lg font-semibold text-white">{Number(value).toLocaleString()}</p></div>)}
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ["Delivery",analytics.deliveryRate],["Show",analytics.showRate],["Open",analytics.openRate],["Dismiss",analytics.dismissRate],
+            ].map(([label,value])=><div key={String(label)} className="rounded-lg border border-border p-2.5"><p className="text-[10px] text-ink2">{label} rate</p><p className="mt-1 text-sm font-semibold text-white">{value===null?"—":String(value)+"%"}</p></div>)}
+          </div>
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[minmax(0,1fr)_52px_60px_48px_48px] gap-2 border-b border-border px-3 py-2 text-[9px] uppercase tracking-wide text-ink2">
+              <span>App</span><span className="text-right">Sent</span><span className="text-right">Delivered</span><span className="text-right">Open</span><span className="text-right">Dismiss</span>
+            </div>
+            {analytics.apps.map(app=><div key={app.target_id} className="grid grid-cols-[minmax(0,1fr)_52px_60px_48px_48px] items-center gap-2 px-3 py-2 text-[10px] text-white">
+              <span className="truncate">{app.app_name??"Deleted app"}</span><span className="text-right">{app.sent}</span><span className="text-right">{app.delivered}</span><span className="text-right">{app.opened}</span><span className="text-right">{app.dismissed}</span>
+            </div>)}
+          </div>
+          <p className="text-[10px] text-ink2">Delivered currently means an Android app-reported FCM receipt. Firebase BigQuery delivery sync can be added later for authoritative FCM delivery metrics. {analytics.updatedAt?"Updated "+formatPakistanDate(analytics.updatedAt):"Waiting for events…"}</p>
+        </div>:<p className="text-xs text-ink2">No analytics events yet.</p>}
       </div>
     </Card>}
    </div>
