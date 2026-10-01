@@ -224,7 +224,6 @@ type TargetRow = {
   id: string;
   app_id: string | null;
   app_name: string | null;
-  analytics_label: string | null;
   status: "pending" | "sent" | "failed";
 };
 
@@ -268,7 +267,7 @@ export async function dispatchMessage(message: Message): Promise<void> {
   );
 
   const targetsResult = await query<TargetRow>(
-    `SELECT id,app_id,app_name,analytics_label,status
+    `SELECT id,app_id,app_name,status
      FROM public.message_targets
      WHERE message_id=$1
      ORDER BY created_at ASC, id ASC`,
