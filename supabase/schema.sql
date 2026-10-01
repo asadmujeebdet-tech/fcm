@@ -39,6 +39,7 @@ create table if not exists messages (
   notification_title    text,
   notification_body     text,
   notification_image    text,
+  analytics_label       text not null default ('fcm_' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 16)),
 
   status                text not null default 'draft'
                           check (status in ('draft', 'scheduled', 'sending', 'sent', 'partial_failure', 'failed', 'canceled')),
@@ -60,6 +61,41 @@ create table if not exists messages (
 create index if not exists messages_user_id_idx on messages(user_id);
 create index if not exists messages_status_idx on messages(status);
 create index if not exists messages_scheduled_at_idx on messages(scheduled_at);
+create unique index if not exists messages_analytics_label_idx on messages(analytics_label);
+
+create table if not exists fcm_analytics_events (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid not null references messages(id) on delete cascade,
+  message_target_id uuid not null references message_targets(id) on delete cascade,
+  app_id uuid references firebase_apps(id) on delete cascade,
+  analytics_label text not null,
+  installation_id text not null,
+  event_type text not null check (event_type in ('received','shown','opened','dismissed')),
+  event_timestamp timestamptz not null default now(),
+  app_version text,
+  android_version text,
+  device_model text,
+  metadata jsonb,
+  created_at timestamptz not null default now(),
+  unique(message_target_id, installation_id, event_type)
+);
+
+create index if not exists fcm_analytics_events_message_id_idx on fcm_analytics_events(message_id);
+create index if not exists fcm_analytics_events_target_id_idx on fcm_analytics_events(message_target_id);
+
+create table if not exists fcm_analytics_summary (
+  message_target_id uuid primary key references message_targets(id) on delete cascade,
+  message_id uuid not null references messages(id) on delete cascade,
+  app_id uuid references firebase_apps(id) on delete cascade,
+  delivered_count bigint not null default 0,
+  received_count bigint not null default 0,
+  shown_count bigint not null default 0,
+  opened_count bigint not null default 0,
+  dismissed_count bigint not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists fcm_analytics_summary_message_id_idx on fcm_analytics_summary(message_id);
 
 -- ----------------------------------------------------------------------------
 -- 3. message_targets — one row per (message, app) pair, tracks delivery
@@ -109,6 +145,8 @@ create trigger messages_set_updated_at
 alter table firebase_apps enable row level security;
 alter table messages enable row level security;
 alter table message_targets enable row level security;
+alter table fcm_analytics_events enable row level security;
+alter table fcm_analytics_summary enable row level security;
 
 drop policy if exists "select own apps" on firebase_apps;
 create policy "select own apps" on firebase_apps
@@ -164,3 +202,12 @@ create policy "update own message targets" on message_targets
 -- using the Supabase SERVICE ROLE key (server-side only), which bypasses RLS
 -- by design — these policies are what protect direct client-side/API access
 -- using the anon key, e.g. if you later add client-side reads.
+
+
+drop policy if exists "select own analytics events" on fcm_analytics_events;
+create policy "select own analytics events" on fcm_analytics_events
+  for select using (exists (select 1 from messages m where m.id = message_id and m.user_id = auth.uid()));
+
+drop policy if exists "select own analytics summary" on fcm_analytics_summary;
+create policy "select own analytics summary" on fcm_analytics_summary
+  for select using (exists (select 1 from messages m where m.id = message_id and m.user_id = auth.uid()));
