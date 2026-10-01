@@ -19,12 +19,14 @@ type Message = {
   notification_body: string | null;
   notification_image: string | null;
   total_apps_targeted?: number | null;
+  analytics_label: string;
 };
 
 type Target = {
   id: string;
   app_id: string | null;
   app_name: string | null;
+  analytics_label: string | null;
   status: "pending" | "sent" | "failed";
 };
 
@@ -187,10 +189,15 @@ async function getAccessToken(serviceAccount: {
   return data.access_token as string;
 }
 
-function buildMessage(message: Message, topic: string) {
+function buildMessage(message: Message, topic: string, targetId: string) {
   return {
     message: {
       topic,
+      data: {
+        analytics_label: message.analytics_label,
+        analytics_target_id: targetId,
+      },
+      fcm_options: { analytics_label: message.analytics_label },
       android: { priority: "HIGH" },
       notification: {
         title: message.notification_title ?? "",
@@ -207,8 +214,9 @@ async function sendToFirebase(
   message: Message,
   app: FirebaseApp,
   topic: string,
+  targetId: string,
 ): Promise<string> {
-  const payload = buildMessage(message, topic);
+  const payload = buildMessage(message, topic, targetId);
   const payloadBytes = getPayloadSizeBytes(payload);
 
   if (payloadBytes > MAX_TOPIC_PAYLOAD_BYTES) {
@@ -490,7 +498,7 @@ async function processMessage(
 
     let fcmMessageId: string;
     try {
-      fcmMessageId = await sendToFirebase(message, app, topic);
+      fcmMessageId = await sendToFirebase(message, app, topic, target.id);
     } catch (error) {
       failed++;
       const errorMessage =
