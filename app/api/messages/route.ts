@@ -72,8 +72,8 @@ export async function POST(req:NextRequest){
           userId,input.topic||"",input.notificationTitle||null,input.notificationBody||null,input.notificationImage||null,
           status,scheduledAt,validAppIds.length]);
       const message=r.rows[0]; if(!message)throw new Error("Failed to create message");
-      const t=await client.query(`INSERT INTO public.message_targets(message_id,app_id,app_name)
-        SELECT $1,fa.id,fa.name FROM public.firebase_apps fa WHERE fa.id=ANY($2::uuid[])`,[message.id,validAppIds]);
+      const t=await client.query(`INSERT INTO public.message_targets(message_id,app_id,app_name,analytics_label)
+        SELECT $1,fa.id,fa.name,$3 FROM public.firebase_apps fa WHERE fa.id=ANY($2::uuid[])`,[message.id,validAppIds,message.analytics_label]);
       if(t.rowCount!==validAppIds.length)throw new Error("Failed to create all message targets");
       return message;
     };
