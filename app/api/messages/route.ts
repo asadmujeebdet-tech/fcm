@@ -67,8 +67,8 @@ export async function POST(req:NextRequest){
     // never leave a broadcast with missing targets.
     const insertMessage=async(client:PoolClient,status:"draft"|"scheduled",scheduledAt:string|null)=>{
       const r=await client.query<Message>(`INSERT INTO public.messages
-        (user_id,topic,notification_title,notification_body,notification_image,status,scheduled_at,total_apps_targeted)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,[
+        (user_id,topic,notification_title,notification_body,notification_image,analytics_label,status,scheduled_at,total_apps_targeted)
+        VALUES($1,$2,$3,$4,$5,'msg-' || replace(gen_random_uuid()::text,'-',''),$6,$7,$8) RETURNING *`,[
           userId,input.topic||"",input.notificationTitle||null,input.notificationBody||null,input.notificationImage||null,
           status,scheduledAt,validAppIds.length]);
       const message=r.rows[0]; if(!message)throw new Error("Failed to create message");
