@@ -24,10 +24,15 @@ type ServiceAccount = {
   private_key: string;
 };
 
-function buildFcmPayload(message: Message, topic: string) {
+function buildFcmPayload(message: Message, topic: string, targetId: string) {
   return {
     message: {
       topic,
+      data: {
+        analytics_label: message.analytics_label,
+        analytics_target_id: targetId,
+      },
+      fcm_options: { analytics_label: message.analytics_label },
       android: { priority: "HIGH" },
       notification: {
         title: message.notification_title ?? "",
@@ -80,8 +85,9 @@ async function sendToFirebase(
   message: Message,
   app: FirebaseApp,
   topic: string,
+  targetId: string,
 ): Promise<string> {
-  const payload = buildFcmPayload(message, topic);
+  const payload = buildFcmPayload(message, topic, targetId);
   const payloadBytes = getPayloadSizeBytes(payload);
 
   if (payloadBytes > MAX_TOPIC_PAYLOAD_BYTES) {
@@ -218,6 +224,7 @@ type TargetRow = {
   id: string;
   app_id: string | null;
   app_name: string | null;
+  analytics_label: string | null;
   status: "pending" | "sent" | "failed";
 };
 
@@ -261,7 +268,7 @@ export async function dispatchMessage(message: Message): Promise<void> {
   );
 
   const targetsResult = await query<TargetRow>(
-    `SELECT id,app_id,app_name,status
+    `SELECT id,app_id,app_name,analytics_label,status
      FROM public.message_targets
      WHERE message_id=$1
      ORDER BY created_at ASC, id ASC`,
@@ -359,7 +366,7 @@ export async function dispatchMessage(message: Message): Promise<void> {
 
     let fcmMessageId: string;
     try {
-      fcmMessageId = await sendToFirebase(message, app, topic);
+      fcmMessageId = await sendToFirebase(message, app, topic, target.id);
     } catch (error) {
       failed++;
       const errorMessage =
