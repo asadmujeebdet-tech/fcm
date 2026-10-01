@@ -381,7 +381,7 @@ async function processMessage(
 ) {
   const { data: targets, error: targetError } = await supabaseAdmin
     .from("message_targets")
-    .select("id,app_id,app_name,status")
+    .select("id,app_id,app_name,analytics_label,status")
     .eq("message_id", message.id)
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });
