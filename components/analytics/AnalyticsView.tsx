@@ -7,8 +7,20 @@ import { type AppRow, type Totals, fmtNum, fmtPct, rates, timeAgo } from "@/lib/
 
 /* ------------------------------------------------------------------ shell */
 
-export function AxPanel({ children }: { children: ReactNode }) {
-  return <div className="w-full overflow-hidden rounded-2xl border border-ax-line bg-white text-ax-ink shadow-[0_24px_60px_-24px_rgba(0,0,0,.65)]">{children}</div>;
+export function AxPanel({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`w-full overflow-hidden rounded-2xl border border-ax-line bg-white text-ax-ink shadow-[0_24px_60px_-24px_rgba(0,0,0,.65)] ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function LiveBadge({ lastFetched }: { lastFetched: Date | null }) {
