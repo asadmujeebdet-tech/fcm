@@ -16,7 +16,7 @@ export function AxPanel({
 }) {
   return (
     <div
-      className={`w-full overflow-hidden rounded-2xl border border-ax-line bg-white text-ax-ink shadow-[0_24px_60px_-24px_rgba(0,0,0,.65)] ${className}`}
+      className={`analytics-panel w-full overflow-hidden rounded-2xl border border-ax-line bg-white text-ax-ink shadow-[0_24px_60px_-24px_rgba(0,0,0,.65)] ${className}`}
     >
       {children}
     </div>
