@@ -7,5 +7,5 @@ export default async function DashboardLayout({children}:{children:React.ReactNo
  const token=cookies().get(AUTH_COOKIE)?.value;
  if(!(await isValidAuthToken(token)))redirect("/login");
  const email=process.env.NEXT_PUBLIC_EMAIL??process.env.EMAIL??"";
- return <div className="flex min-h-screen bg-ink"><Sidebar email={email}/><main className="min-w-0 flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8">{children}</div></main></div>;
+ return <div className="flex min-h-screen bg-ink text-white transition-colors duration-200"><Sidebar email={email}/><main className="min-w-0 flex-1 overflow-y-auto bg-ink"><div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8">{children}</div></main></div>;
 }
