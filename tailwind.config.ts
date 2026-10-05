@@ -21,6 +21,11 @@ const config: Config = {
           dim: "#1F8E82",
         },
         danger: "#FF5C68",
+        ax: {
+          navy: "#0f1b3d", ink: "#1f2a44", muted: "#64748b", soft: "#8a97b1", line: "#e6ecf7", canvas: "#f5f8ff",
+          blue: "#2f6df6", blueSoft: "#e8f0ff", green: "#16b364", greenSoft: "#e3f8ec", purple: "#7c5cf5", purpleSoft: "#efebff",
+          orange: "#f59e0b", orangeSoft: "#fff1dc", red: "#ef4466", redSoft: "#ffe8ed",
+        },
         ink2: "#8B93A7",
       },
       fontFamily: {

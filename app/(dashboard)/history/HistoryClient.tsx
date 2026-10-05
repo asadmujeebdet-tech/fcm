@@ -1,163 +1,106 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X, Ban, Copy, Check, BarChart3, Radio } from "lucide-react";
-import { Card, EmptyState } from "@/components/ui/Card";
-import { StatusBadge } from "@/components/StatusBadge";
-import { Message, MessageApp, MessageTarget } from "@/types/database";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Message } from "@/types/database";
+import { AxPanel, AxHeader, Pagination, StatusPill, AppAvatar } from "@/components/analytics/AnalyticsView";
+import { emptyTotals, fmtNum, formatPakistanDate } from "@/lib/analytics";
 
-type TargetRow = MessageTarget & { firebase_apps: { name:string; app_icon_url?:string|null }|null };
-type Analytics = {
- sent:number; failed:number; delivered:number; received:number; shown:number; opened:number; dismissed:number;
- deliveryRate:number|null; showRate:number|null; openRate:number|null; dismissRate:number|null;
- updatedAt:string|null;
- apps:Array<{target_id:string;app_id:string|null;app_name:string|null;app_icon_url:string|null;sent:number;failed:number;delivered:number;received:number;shown:number;opened:number;dismissed:number;}>;
-};
+const COLS = ["sent", "delivered", "shown", "opened", "dismissed"] as const;
 
-function formatPakistanDate(value: string | null | undefined) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  const datePart = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Karachi",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
-
-  const timePart = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Karachi",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(date);
-
-  return datePart + " • " + timePart;
-}
-
-function AppPills({apps,fallback}:{apps?:MessageApp[];fallback:number}) {
-  if(!apps?.length)return <span className="text-xs text-ink2">—</span>;
-  const visibleApps = apps.slice(0, 4);
-  const remaining = Math.max(0, apps.length - visibleApps.length);
+function Apps({ apps }: { apps?: Message["apps"] }) {
+  if (!apps?.length) return <span className="text-xs text-ax-soft">—</span>;
+  const visible = apps.slice(0, 3);
   return (
-    <div className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap">
-      {visibleApps.map(app=>app.app_icon_url
-        ? <img key={app.id} src={app.app_icon_url} alt={app.name} title={app.name} className="h-7 w-7 shrink-0 rounded-md object-cover ring-1 ring-border"/>
-        : <div key={app.id} title={app.name} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface2 text-[9px] font-bold text-white ring-1 ring-border">{app.name.slice(0,1).toUpperCase()}</div>
-      )}
-      {remaining > 0 && <span className="ml-1 shrink-0 text-[10px] font-semibold text-ink2">+{remaining}</span>}
+    <div className="flex items-center gap-1">
+      {visible.map((a) => <AppAvatar key={a.id} name={a.name} icon={a.app_icon_url} size={26} />)}
+      {apps.length > visible.length && <span className="ml-1 text-[11px] font-semibold text-ax-muted">+{apps.length - visible.length}</span>}
     </div>
   );
 }
 
-function CopyField({label,value}:{label:string;value:string}) {
- const [copied,setCopied]=useState(false);
- async function copy(){try{await navigator.clipboard.writeText(value);setCopied(true);setTimeout(()=>setCopied(false),1400);}catch{}}
- return <div className="group rounded-xl border border-border bg-surface2/30 p-3 transition-colors hover:border-signal/40 hover:bg-surface2/60"><div className="mb-2 flex items-center justify-between gap-2"><span className="text-[10px] font-semibold uppercase tracking-[.16em] text-ink2">{label}</span><button onClick={copy} className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-ink2 hover:text-white">{copied?<Check size={11}/>:<Copy size={11}/>} {copied?"Copied":"Copy"}</button></div><p className="whitespace-pre-wrap break-words text-sm leading-6 text-white">{value||"—"}</p></div>;
-}
+export function HistoryClient() {
+  const router = useRouter();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [rows, setRows] = useState<Message[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const requestId = useRef(0);
 
-export function HistoryClient(){
- const [messages,setMessages]=useState<Message[]>([]);
- const [loading,setLoading]=useState(true);
- const [selected,setSelected]=useState<Message|null>(null);
- const [targets,setTargets]=useState<TargetRow[]>([]);
- const [loadingTargets,setLoadingTargets]=useState(false);
- const [analytics,setAnalytics]=useState<Analytics|null>(null);
- const [analyticsLoading,setAnalyticsLoading]=useState(false);
+  const load = useCallback(async (quiet = false) => {
+    const id = ++requestId.current;
+    if (!quiet) setLoading(true);
+    try {
+      const res = await fetch(`/api/messages?page=${page}&pageSize=${pageSize}`, { cache: "no-store" });
+      const data = await res.json();
+      if (id !== requestId.current) return; // a newer request superseded this one
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load history");
+      setRows(data.messages ?? []);
+      setTotal(data.total ?? 0);
+      if (data.page && data.page !== page) setPage(data.page);
+      setError(null);
+      setLastFetched(new Date());
+    } catch (e) {
+      if (id === requestId.current) setError(e instanceof Error ? e.message : "Failed to load history");
+    } finally {
+      if (id === requestId.current) setLoading(false);
+    }
+  }, [page, pageSize]);
 
- async function loadAnalytics(messageId:string){
-   setAnalyticsLoading(true);
-   try{
-     const res=await fetch("/api/messages/"+messageId+"/analytics",{cache:"no-store"});
-     const data=await res.json();
-     if(res.ok)setAnalytics(data);
-   }finally{setAnalyticsLoading(false);}
- }
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = setInterval(() => { if (!document.hidden) load(true); }, 5000);
+    return () => clearInterval(timer);
+  }, [load]);
 
- async function openDetail(message:Message){
-   setSelected(message);
-   setAnalytics(null);
-   setLoadingTargets(true);
-   const res=await fetch(`/api/messages/${message.id}`);
-   const data=await res.json();
-   setSelected(data.message??message);
-   setTargets(data.targets??[]);
-   setLoadingTargets(false);
-   loadAnalytics(message.id);
- }
+  const open = (id: string) => router.push(`/history/${id}`);
 
- async function loadMessages(){
-   setLoading(true);
-   const res=await fetch("/api/messages");
-   const data=await res.json();
-   const nextMessages=data.messages??[];
-   setMessages(nextMessages);
-   setLoading(false);
-   if(nextMessages.length>0) await openDetail(nextMessages[0]);
-   else setSelected(null);
- }
-
- useEffect(()=>{loadMessages();},[]);
- useEffect(()=>{
-   if(!selected?.id)return;
-   const timer=setInterval(()=>loadAnalytics(selected.id),3000);
-   return()=>clearInterval(timer);
- },[selected?.id]);
-
- async function cancelMessage(message:Message){
-   if(!confirm("Cancel this scheduled message?"))return;
-   await fetch(`/api/messages/${message.id}`,{method:"DELETE"});
-   loadMessages();
-   setSelected(null);
- }
-
- const title=selected?.notification_title??"";
- const body=selected?.notification_body??"";
-
- return <div className="space-y-6">
-   <div><h1 className="text-xl font-semibold text-white">History</h1><p className="mt-1 text-sm text-ink2">Every broadcast — sent, scheduled, or drafted.</p></div>
-   <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-    <div className="min-w-0">
-     {!loading&&messages.length===0?<EmptyState title="Nothing sent yet" description="Your broadcast history will show up here once you send or schedule a message."/>:<Card className="overflow-hidden"><div className="w-full"><table className="history-table w-full table-fixed text-left text-sm"><thead><tr className="border-b border-border text-xs text-ink2"><th className="w-[31%] px-3 py-3 font-normal sm:px-5">Apps</th><th className="w-[19%] px-3 py-3 text-center font-normal sm:px-5">FCM Accepted / Failed</th><th className="w-[15%] px-3 py-3 text-center font-normal sm:px-5">Status</th><th className="w-[20%] px-3 py-3 font-normal sm:px-5">When</th></tr></thead><tbody>{messages.map(m=><tr key={m.id} onClick={()=>openDetail(m)} className={`cursor-pointer border-b border-border last:border-0 hover:bg-surface2/50 ${selected?.id===m.id?"bg-surface2/40":""}`}><td className="min-w-0 overflow-hidden px-3 py-3 sm:px-5"><AppPills apps={m.apps} fallback={m.total_apps_targeted}/></td><td className="px-3 py-3 text-center font-mono text-[10px] font-medium text-ink2 sm:px-5 sm:text-xs">{m.total_sent} / {m.total_failed}</td><td className="px-3 py-3 text-center sm:px-5"><StatusBadge status={m.status}/></td><td className="px-3 py-3 text-[10px] leading-4 text-ink2 sm:px-5 sm:text-xs">{formatPakistanDate(m.scheduled_at??m.sent_at??m.created_at)}</td></tr>)}</tbody></table></div></Card>}
-    </div>
-    {selected&&<Card className="h-fit min-w-0 p-5 lg:sticky lg:top-6">
-      <div className="mb-5 flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[.18em] text-ink2">Message details</p><h2 className="mt-1 text-base font-semibold text-white">Broadcast</h2></div><div className="flex items-center gap-2"><StatusBadge status={selected.status}/><button onClick={()=>setSelected(null)} className="rounded-md p-1 text-ink2 hover:bg-surface2 hover:text-white" aria-label="Close"><X size={15}/></button></div></div>
-      <div className="space-y-3">
-        <div className="rounded-xl bg-violet-500/10 p-1 transition-colors hover:bg-violet-500/15"><CopyField label="Title" value={title}/></div>
-        <div className="rounded-xl bg-sky-500/10 p-1 transition-colors hover:bg-sky-500/15"><CopyField label="Body" value={body}/></div>
+  return (
+    <AxPanel>
+      <AxHeader title="History" lastFetched={lastFetched} />
+      <div className="px-5 pb-1 pt-5 sm:px-6">
+        <h2 className="text-xl font-semibold tracking-tight text-ax-navy">All campaigns</h2>
+        <p className="mt-1 text-sm text-ax-muted">Every broadcast — sent, scheduled, or drafted. Select one to open its campaign report.</p>
       </div>
-      <div className="mt-5 border-t border-border pt-4"><div className="mb-3 flex items-center justify-between"><p className="text-xs font-medium text-white">Apps & delivery</p>{["draft","scheduled"].includes(selected.status)&&<button onClick={()=>cancelMessage(selected)} className="flex items-center gap-1 text-xs text-danger hover:underline"><Ban size={11}/> Cancel</button>}</div>
-      {loadingTargets?<p className="text-xs text-ink2">Loading...</p>:<div className="space-y-2">{targets.map(t=><div key={t.id} className="rounded-lg border border-border p-3"><div className="flex min-w-0 items-center gap-2">{t.firebase_apps?.app_icon_url?<img src={t.firebase_apps.app_icon_url} alt="" className="h-7 w-7 rounded-md object-cover"/>:<div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface2 text-[9px] text-white">{t.firebase_apps?.name?.slice(0,1).toUpperCase()??"?"}</div>}<span className="truncate text-xs text-white">{t.firebase_apps?.name??"Unknown app"}</span><span className={`ml-auto shrink-0 text-[10px] font-semibold uppercase tracking-wide ${t.status==="failed"?"text-danger":"text-ink2"}`}>{t.status==="sent"?"accepted":t.status}</span></div>{t.error_message&&<p className="mt-1 text-xs text-danger">{t.error_message}</p>}</div>)}</div>}
+      {error && <p className="mx-5 mt-4 rounded-lg border border-ax-red/20 bg-ax-redSoft px-3 py-2 text-xs text-ax-red sm:mx-6">{error}</p>}
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[980px] text-left text-sm">
+          <thead>
+            <tr className="border-y border-ax-line bg-ax-canvas text-xs text-ax-soft">
+              <th className="px-5 py-2.5 font-medium sm:pl-6">Campaign</th>
+              <th className="px-3 py-2.5 font-medium">Apps</th>
+              {COLS.map((c) => <th key={c} className="px-3 py-2.5 text-right font-medium capitalize">{c}</th>)}
+              <th className="px-3 py-2.5 font-medium">Status</th>
+              <th className="px-5 py-2.5 font-medium sm:pr-6">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((m) => {
+              const stats = m.stats ?? emptyTotals;
+              return (
+                <tr key={m.id} tabIndex={0} onClick={() => open(m.id)} onKeyDown={(e) => { if (e.key === "Enter") open(m.id); }}
+                  className="cursor-pointer border-b border-ax-line transition-colors last:border-0 hover:bg-ax-canvas focus-visible:bg-ax-canvas focus-visible:outline-none">
+                  <td className="max-w-[300px] px-5 py-3.5 sm:pl-6">
+                    <Link href={`/history/${m.id}`} onClick={(e) => e.stopPropagation()} className="block truncate font-semibold text-ax-navy hover:text-ax-blue">{m.notification_title || "Untitled broadcast"}</Link>
+                    <p className="mt-0.5 truncate text-xs text-ax-muted">{m.notification_body || "—"}</p>
+                  </td>
+                  <td className="px-3 py-3.5"><Apps apps={m.apps} /></td>
+                  {COLS.map((c) => <td key={c} className={`px-3 py-3.5 text-right tabular-nums ${stats[c] ? "font-medium text-ax-ink" : "text-ax-soft"}`}>{fmtNum(stats[c])}</td>)}
+                  <td className="px-3 py-3.5"><StatusPill status={m.status} /></td>
+                  <td className="whitespace-nowrap px-5 py-3.5 text-xs text-ax-muted sm:pr-6">{formatPakistanDate(m.scheduled_at ?? m.sent_at ?? m.created_at)}</td>
+                </tr>
+              );
+            })}
+            {!loading && rows.length === 0 && <tr><td colSpan={9} className="px-6 py-16 text-center text-sm text-ax-muted">Nothing sent yet. Your broadcast history will show up here once you send or schedule a message.</td></tr>}
+            {loading && rows.length === 0 && <tr><td colSpan={9} className="px-6 py-16 text-center text-sm text-ax-soft">Loading…</td></tr>}
+          </tbody>
+        </table>
       </div>
-      <div className="mt-5 border-t border-border pt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="flex items-center gap-2 text-xs font-medium text-white"><BarChart3 size={13}/> Live analytics</p>
-          <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Radio size={9}/> LIVE</span>
-        </div>
-        {analyticsLoading&&!analytics?<p className="text-xs text-ink2">Loading analytics...</p>:analytics?<div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              ["Sent",analytics.sent],["Delivered",analytics.delivered],["Shown",analytics.shown],["Opened",analytics.opened],
-            ].map(([label,value])=><div key={String(label)} className="rounded-lg border border-border bg-surface2/30 p-3"><p className="text-[10px] uppercase tracking-wide text-ink2">{label}</p><p className="mt-1 text-lg font-semibold text-white">{Number(value).toLocaleString()}</p></div>)}
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              ["Delivery",analytics.deliveryRate],["Show",analytics.showRate],["Open",analytics.openRate],["Dismiss",analytics.dismissRate],
-            ].map(([label,value])=><div key={String(label)} className="rounded-lg border border-border p-2.5"><p className="text-[10px] text-ink2">{label} rate</p><p className="mt-1 text-sm font-semibold text-white">{value===null?"—":String(value)+"%"}</p></div>)}
-          </div>
-          <div className="rounded-lg border border-border overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,1fr)_52px_60px_48px_48px] gap-2 border-b border-border px-3 py-2 text-[9px] uppercase tracking-wide text-ink2">
-              <span>App</span><span className="text-right">Sent</span><span className="text-right">Delivered</span><span className="text-right">Open</span><span className="text-right">Dismiss</span>
-            </div>
-            {analytics.apps.map(app=><div key={app.target_id} className="grid grid-cols-[minmax(0,1fr)_52px_60px_48px_48px] items-center gap-2 px-3 py-2 text-[10px] text-white">
-              <span className="truncate">{app.app_name??"Deleted app"}</span><span className="text-right">{app.sent}</span><span className="text-right">{app.delivered}</span><span className="text-right">{app.opened}</span><span className="text-right">{app.dismissed}</span>
-            </div>)}
-          </div>
-          <p className="text-[10px] text-ink2">Delivered currently means an Android app-reported FCM receipt. Firebase BigQuery delivery sync can be added later for authoritative FCM delivery metrics. {analytics.updatedAt?"Updated "+formatPakistanDate(analytics.updatedAt):"Waiting for events…"}</p>
-        </div>:<p className="text-xs text-ink2">No analytics events yet.</p>}
-      </div>
-    </Card>}
-   </div>
- </div>;
+      <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }} />
+    </AxPanel>
+  );
 }

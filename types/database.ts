@@ -8,7 +8,7 @@ export interface Message {
  notification_title:string|null; notification_body:string|null; notification_image:string|null; analytics_label:string;
  status:MessageStatus; scheduled_at:string|null; sent_at:string|null;
  total_apps_targeted:number; total_sent:number; total_failed:number; sent_count:number; delivered:number; delivery_rate:number|null; delivery_failed:number;
- apps?:MessageApp[]; created_at:string; updated_at:string;
+ apps?:MessageApp[]; stats?:{sent:number;failed:number;delivered:number;shown:number;opened:number;dismissed:number}; created_at:string; updated_at:string;
 }
 export interface MessageTarget { id:string; message_id:string; app_id:string|null; analytics_label:string|null; app_name:string|null; status:TargetStatus; fcm_message_id:string|null; error_message:string|null; sent_at:string|null; created_at:string; }
 export interface MessageWithTargets extends Message { message_targets:(MessageTarget & {firebase_apps:{name:string;app_icon_url?:string|null}|null})[]; }

@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth-edge";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login"];
+// The analytics event endpoint is called by the Android apps (no login cookie). It only accepts
+// events whose analytics label + target id match a real broadcast target.
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/analytics/fcm/event"];
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;

@@ -63,6 +63,31 @@ create index if not exists messages_status_idx on messages(status);
 create index if not exists messages_scheduled_at_idx on messages(scheduled_at);
 create unique index if not exists messages_analytics_label_idx on messages(analytics_label);
 
+-- ----------------------------------------------------------------------------
+-- 3. message_targets — one row per (message, app) pair, tracks delivery
+-- ----------------------------------------------------------------------------
+create table if not exists message_targets (
+  id              uuid primary key default gen_random_uuid(),
+  message_id      uuid not null references messages(id) on delete cascade,
+  -- App deletion is handled transactionally by the app DELETE API: only that
+  -- app's target rows are removed, while other apps on the same message remain.
+  app_id          uuid references firebase_apps(id) on delete cascade,
+  app_name        text,
+  status          text not null default 'pending' check (status in ('pending', 'sent', 'failed')),
+  fcm_message_id  text,
+  error_message   text,
+  sent_at         timestamptz,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists message_targets_message_id_idx on message_targets(message_id);
+create index if not exists message_targets_app_id_idx on message_targets(app_id);
+create unique index if not exists message_targets_unique_pair on message_targets(message_id, app_id);
+
+-- ----------------------------------------------------------------------------
+-- 4. realtime analytics — device-reported events + per-target summary
+--    (created after message_targets because both tables reference it)
+-- ----------------------------------------------------------------------------
 create table if not exists fcm_analytics_events (
   id uuid primary key default gen_random_uuid(),
   message_id uuid not null references messages(id) on delete cascade,
@@ -96,27 +121,6 @@ create table if not exists fcm_analytics_summary (
 );
 
 create index if not exists fcm_analytics_summary_message_id_idx on fcm_analytics_summary(message_id);
-
--- ----------------------------------------------------------------------------
--- 3. message_targets — one row per (message, app) pair, tracks delivery
--- ----------------------------------------------------------------------------
-create table if not exists message_targets (
-  id              uuid primary key default gen_random_uuid(),
-  message_id      uuid not null references messages(id) on delete cascade,
-  -- App deletion is handled transactionally by the app DELETE API: only that
-  -- app's target rows are removed, while other apps on the same message remain.
-  app_id          uuid references firebase_apps(id) on delete cascade,
-  app_name        text,
-  status          text not null default 'pending' check (status in ('pending', 'sent', 'failed')),
-  fcm_message_id  text,
-  error_message   text,
-  sent_at         timestamptz,
-  created_at      timestamptz not null default now()
-);
-
-create index if not exists message_targets_message_id_idx on message_targets(message_id);
-create index if not exists message_targets_app_id_idx on message_targets(app_id);
-create unique index if not exists message_targets_unique_pair on message_targets(message_id, app_id);
 
 -- ----------------------------------------------------------------------------
 -- updated_at triggers

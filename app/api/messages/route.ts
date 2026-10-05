@@ -5,6 +5,7 @@ import { getCurrentUserId } from "@/lib/current-user";
 import { dispatchMessage } from "@/lib/dispatch-message";
 import type { PoolClient } from "pg";
 import { Message } from "@/types/database";
+import { toTotals } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 // Send-now dispatches every selected app inside this request. Give it room on
@@ -17,20 +18,34 @@ const baseSchema = z.object({
   notificationTitle:z.string().optional(), notificationBody:z.string().optional(), notificationImage:z.string().optional(),
 });
 
-export async function GET(){
+export async function GET(req:NextRequest){
   try{
+    const params=req.nextUrl.searchParams;
+    const paged=params.has("page");
+    const pageSize=Math.min(100,Math.max(1,parseInt(params.get("pageSize")??"10",10)||10));
+    const total=Number((await query<{count:string}>("SELECT COUNT(*) FROM public.messages")).rows[0]?.count??0);
+    const totalPages=Math.max(1,Math.ceil(total/pageSize));
+    const page=Math.min(totalPages,Math.max(1,parseInt(params.get("page")??"1",10)||1));
     const r=await query(`
-      SELECT m.*,
-        COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
-          'id',COALESCE(mt.app_id,mt.id),'name',COALESCE(fa.name,mt.app_name,'Deleted app'),'app_icon_url',fa.app_icon_url
-        )) FILTER (WHERE mt.id IS NOT NULL),'[]'::jsonb) AS apps
-      FROM public.messages m
-      LEFT JOIN public.message_targets mt ON mt.message_id=m.id
-      LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
-      GROUP BY m.id
+      SELECT m.*, a.apps, a.sent, a.failed, a.delivered, a.shown, a.opened, a.dismissed
+      FROM (SELECT * FROM public.messages ORDER BY created_at DESC ${paged?"LIMIT $1 OFFSET $2":""}) m
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
+                 'id',COALESCE(mt.app_id,mt.id),'name',COALESCE(fa.name,mt.app_name,'Deleted app'),'app_icon_url',fa.app_icon_url
+               )) FILTER (WHERE mt.id IS NOT NULL),'[]'::jsonb) AS apps,
+               COUNT(*) FILTER (WHERE mt.status='sent') AS sent,
+               COUNT(*) FILTER (WHERE mt.status='failed') AS failed,
+               COALESCE(SUM(s.delivered_count),0) AS delivered, COALESCE(SUM(s.shown_count),0) AS shown,
+               COALESCE(SUM(s.opened_count),0) AS opened, COALESCE(SUM(s.dismissed_count),0) AS dismissed
+        FROM public.message_targets mt
+        LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
+        LEFT JOIN public.fcm_analytics_summary s ON s.message_target_id=mt.id
+        WHERE mt.message_id=m.id
+      ) a ON true
       ORDER BY m.created_at DESC
-    `);
-    return NextResponse.json({messages:r.rows});
+    `,paged?[pageSize,(page-1)*pageSize]:[]);
+    const messages=r.rows.map(({sent,failed,delivered,shown,opened,dismissed,...message})=>({...message,stats:toTotals({sent,failed,delivered,shown,opened,dismissed})}));
+    return NextResponse.json({messages,page,pageSize,total,totalPages});
   }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
 }
 
