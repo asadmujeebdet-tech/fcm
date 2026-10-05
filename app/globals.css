@@ -2065,3 +2065,92 @@ html[data-theme="light"] .schedule-mode-tile.is-selected:nth-child(2) {
 .schedule-section-heading p:last-child { font-size: 11px !important; }
 .schedule-mode-tile strong { font-size: 13px; }
 .schedule-mode-tile small { font-size: 11px; }
+
+
+/* Light theme fixes for Add Apps and Compose controls. */
+html[data-theme="light"] .theme-modal {
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="light"] .theme-modal .text-white {
+  color: rgb(var(--theme-foreground) / 1) !important;
+}
+html[data-theme="light"] .theme-modal .bg-surface2 {
+  background-color: rgb(var(--theme-surface2) / 1) !important;
+}
+html[data-theme="light"] .target-app-picker-trigger,
+html[data-theme="light"] .target-app-picker-menu {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface) / 1);
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="light"] .target-app-picker-search {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface2) / 1);
+  color: rgb(var(--theme-muted) / 1);
+}
+html[data-theme="light"] .target-app-picker-search input,
+html[data-theme="light"] .target-app-row {
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="light"] .target-app-picker-search input::placeholder {
+  color: rgb(var(--theme-muted) / 1);
+}
+html[data-theme="light"] .target-app-row:hover {
+  background: rgb(var(--theme-surface2) / 1);
+  border-color: rgb(var(--theme-border) / 1);
+}
+html[data-theme="light"] .target-app-row:has(.target-app-checkbox:checked) {
+  background: rgba(77,124,254,.08);
+  border-color: rgba(77,124,254,.22);
+}
+html[data-theme="light"] .target-app-checkbox {
+  border-color: rgb(148 163 184);
+  background: rgb(255 255 255);
+}
+html[data-theme="light"] .schedule-settings-card {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface2) / 1);
+}
+html[data-theme="light"] .schedule-field label {
+  color: rgb(var(--theme-muted) / 1);
+}
+html[data-theme="light"] .schedule-field input,
+html[data-theme="light"] .schedule-field select {
+  border-color: rgb(var(--theme-border) / 1) !important;
+  background: rgb(var(--theme-surface) / 1) !important;
+  color: rgb(var(--theme-foreground) / 1) !important;
+}
+html[data-theme="light"] .schedule-field input::placeholder {
+  color: rgb(var(--theme-muted) / 1);
+}
+html[data-theme="light"] .schedule-field input[type="date"],
+html[data-theme="light"] .schedule-field input[type="time"] {
+  color-scheme: light;
+}
+html[data-theme="light"] .schedule-field select option {
+  background: rgb(var(--theme-surface) / 1);
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="light"] .schedule-summary-card {
+  border-color: rgb(191 219 254);
+  background: rgba(59,130,246,.08);
+}
+html[data-theme="light"] .schedule-summary-icon {
+  background: rgb(var(--theme-surface) / 1);
+  border-color: rgb(var(--theme-border) / 1);
+}
+html[data-theme="light"] .schedule-summary-card p {
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="light"] .schedule-summary-card span {
+  color: rgb(var(--theme-muted) / 1);
+}
+html[data-theme="light"] .schedule-cancel-button {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface2) / 1);
+  color: rgb(var(--theme-muted) / 1);
+}
+html[data-theme="light"] .schedule-cancel-button:hover {
+  background: rgb(var(--theme-surface) / 1);
+  border-color: rgb(var(--theme-border) / 1);
+}
