@@ -93,6 +93,87 @@ html[data-theme="dark"] .dashboard-analytics circle[stroke="#eef2fa"] {
   stroke: rgb(var(--theme-border) / 1) !important;
 }
 
+/* Theme-aware analytics panels: History and Campaign Report use the same app theme. */
+.analytics-panel {
+  background: rgb(var(--theme-surface) / 1) !important;
+  border-color: rgb(var(--theme-border) / 1) !important;
+  color: rgb(var(--theme-foreground) / 1);
+}
+
+html[data-theme="dark"] .analytics-panel .bg-white {
+  background-color: rgb(var(--theme-surface) / 1) !important;
+}
+html[data-theme="dark"] .analytics-panel .text-ax-navy,
+html[data-theme="dark"] .analytics-panel .text-ax-ink {
+  color: rgb(var(--theme-foreground) / 1) !important;
+}
+html[data-theme="dark"] .analytics-panel .text-ax-muted,
+html[data-theme="dark"] .analytics-panel .text-ax-soft {
+  color: rgb(var(--theme-muted) / 1) !important;
+}
+html[data-theme="dark"] .analytics-panel .border-ax-line {
+  border-color: rgb(var(--theme-border) / 1) !important;
+}
+html[data-theme="dark"] .analytics-panel .bg-ax-canvas,
+html[data-theme="dark"] .analytics-panel [class*="bg-[#f1f5fc]"] {
+  background-color: rgb(var(--theme-surface2) / 1) !important;
+}
+html[data-theme="dark"] .analytics-panel select {
+  background-color: rgb(var(--theme-surface2) / 1) !important;
+  color: rgb(var(--theme-foreground) / 1) !important;
+}
+html[data-theme="dark"] .analytics-panel circle[stroke="#eef2fa"] {
+  stroke: rgb(var(--theme-border) / 1) !important;
+}
+
+/* Scheduler follows the selected application theme instead of fixed dark colors. */
+html[data-theme="light"] .schedule-card {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface) / 1);
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="light"] .schedule-section-heading p:first-child {
+  color: rgb(var(--theme-foreground) / 1) !important;
+}
+html[data-theme="light"] .schedule-section-heading p:last-child {
+  color: rgb(var(--theme-muted) / 1) !important;
+}
+html[data-theme="light"] .schedule-mode-tile {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface2) / 1);
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="dark"] .schedule-card {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface) / 1);
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="dark"] .schedule-section-heading p:first-child {
+  color: rgb(var(--theme-foreground) / 1) !important;
+}
+html[data-theme="dark"] .schedule-section-heading p:last-child {
+  color: rgb(var(--theme-muted) / 1) !important;
+}
+html[data-theme="dark"] .schedule-mode-tile {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface2) / 1);
+  color: rgb(var(--theme-foreground) / 1);
+}
+html[data-theme="dark"] .schedule-mode-tile:hover {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface2) / 1);
+}
+html[data-theme="light"] .schedule-mode-tile:hover {
+  border-color: rgb(var(--theme-border) / 1);
+  background: rgb(var(--theme-surface) / 1);
+}
+html[data-theme="light"] .schedule-mode-tile.is-selected {
+  background: rgba(52,211,153,.08);
+}
+html[data-theme="light"] .schedule-mode-tile.is-selected:nth-child(2) {
+  background: rgba(96,165,250,.10);
+}
+
 /* Login composition */
 .login-preview-page {
   width: 100%;
