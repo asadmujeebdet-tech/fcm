@@ -20,7 +20,8 @@ html[data-theme="light"] {
   --theme-surface: 255 255 255;
   --theme-surface2: 241 245 249;
   --theme-border: 226 232 240;
-  --theme-muted: 100 116 139;\n  --theme-foreground: 15 23 42;
+  --theme-muted: 100 116 139;
+  --theme-foreground: 15 23 42;
 }
 
 html[data-theme="dark"], html:not([data-theme]) {
