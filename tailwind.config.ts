@@ -8,10 +8,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0A0D13",
-        surface: "#12161F",
-        surface2: "#1A202C",
-        border: "#242B3A",
+        ink: "rgb(var(--theme-ink) / <alpha-value>)",
+        surface: "rgb(var(--theme-surface) / <alpha-value>)",
+        surface2: "rgb(var(--theme-surface2) / <alpha-value>)",
+        border: "rgb(var(--theme-border) / <alpha-value>)",
         signal: {
           DEFAULT: "rgb(var(--theme-signal) / <alpha-value>)",
           dim: "#B8631F",

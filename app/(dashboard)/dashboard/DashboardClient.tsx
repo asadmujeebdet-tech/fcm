@@ -28,7 +28,7 @@ export function DashboardClient() {
   const n = data?.campaigns ?? 0;
   const apps = data?.appCount ?? 0;
   return (
-    <AxPanel>
+    <AxPanel className="dashboard-analytics">
       <AxHeader title="Dashboard" lastFetched={lastFetched}
         actions={<Link href="/compose" className="flex items-center gap-1.5 rounded-lg bg-ax-blue px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#2559d4]"><Radio size={13} /> New broadcast</Link>} />
       {error && <p className="mx-5 mt-4 rounded-lg border border-ax-red/20 bg-ax-redSoft px-3 py-2 text-xs text-ax-red sm:mx-6">{error}</p>}
