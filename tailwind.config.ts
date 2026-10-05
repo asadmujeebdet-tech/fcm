@@ -13,20 +13,20 @@ const config: Config = {
         surface2: "#1A202C",
         border: "#242B3A",
         signal: {
-          DEFAULT: "#FF9142",
+          DEFAULT: "rgb(var(--theme-signal) / <alpha-value>)",
           dim: "#B8631F",
         },
         wave: {
-          DEFAULT: "#3FD6C6",
+          DEFAULT: "rgb(var(--theme-wave) / <alpha-value>)",
           dim: "#1F8E82",
         },
-        danger: "#FF5C68",
+        danger: "rgb(var(--theme-danger) / <alpha-value>)",
         ax: {
           navy: "#0f1b3d", ink: "#1f2a44", muted: "#64748b", soft: "#8a97b1", line: "#e6ecf7", canvas: "#f5f8ff",
           blue: "#2f6df6", blueSoft: "#e8f0ff", green: "#16b364", greenSoft: "#e3f8ec", purple: "#7c5cf5", purpleSoft: "#efebff",
           orange: "#f59e0b", orangeSoft: "#fff1dc", red: "#ef4466", redSoft: "#ffe8ed",
         },
-        ink2: "#8B93A7",
+        ink2: "rgb(var(--theme-muted) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-manrope)", "system-ui", "sans-serif"],
