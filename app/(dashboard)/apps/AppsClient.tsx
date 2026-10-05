@@ -68,7 +68,7 @@ export function AppsClient() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="app-page space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-white">Apps</h1>
@@ -272,7 +272,7 @@ function AppFormModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editingApp ? "Edit app" : "Add a Firebase app"}>
+    <Modal open={open} onClose={onClose} themeAware title={editingApp ? "Edit app" : "Add a Firebase app"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <Label>Name</Label>
