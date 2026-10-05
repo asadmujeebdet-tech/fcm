@@ -1,7 +1,7 @@
 import { InputHTMLAttributes, TextareaHTMLAttributes, SelectHTMLAttributes, forwardRef } from "react";
 
 const fieldStyles =
-  "w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-white placeholder:text-ink2/60 focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/40 transition-colors";
+  "w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-[rgb(var(--theme-foreground))] placeholder:text-ink2/60 focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/40 transition-colors";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   ({ className = "", ...props }, ref) => (
