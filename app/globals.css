@@ -11,7 +11,8 @@
   --theme-signal: 255 145 66;
   --theme-wave: 63 214 198;
   --theme-danger: 255 92 104;
-  --theme-muted: 139 147 167;\n  --theme-foreground: 237 238 243;
+  --theme-muted: 139 147 167;
+  --theme-foreground: 237 238 243;
 }
 
 html[data-theme="light"] {
