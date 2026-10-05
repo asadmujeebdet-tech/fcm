@@ -35,6 +35,35 @@ html[data-theme="light"] {
 /* Analytics keeps its original light visual system.
    The application theme is intentionally separate from analytics surfaces. */
 
+/* Dashboard shell: use the full content area and let the theme own the surface. */
+.dashboard-analytics {
+  min-height: calc(100vh - 3.5rem);
+  border-radius: 0 !important;
+  border-width: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .app-sidebar .sidebar-nav-item {
+  color: rgb(15 23 42) !important;
+}
+
+html[data-theme="light"] .app-sidebar .sidebar-nav-item:hover,
+html[data-theme="light"] .app-sidebar .sidebar-nav-item[aria-current="page"] {
+  color: rgb(15 23 42) !important;
+}
+
+html[data-theme="light"] .app-sidebar .sidebar-theme-option {
+  color: rgb(15 23 42) !important;
+}
+
+html[data-theme="light"] .app-sidebar .sidebar-theme-option:hover {
+  color: rgb(15 23 42) !important;
+}
+
+html[data-theme="light"] .app-sidebar .text-white {
+  color: rgb(15 23 42) !important;
+}
+
 /* Dashboard analytics follows the application theme without altering analytics pages elsewhere. */
 .dashboard-analytics {
   background: rgb(var(--theme-surface) / 1) !important;
