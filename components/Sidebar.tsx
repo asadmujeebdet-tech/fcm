@@ -24,7 +24,7 @@ export function Sidebar({email}:{email:string}){
     router.refresh();
   }
 }
- return <aside className={`sticky top-0 flex h-screen shrink-0 flex-col border-r border-border bg-surface/95 backdrop-blur-sm transition-[width] duration-200 ${collapsed?"w-16":"w-60"}`}>
+ return <aside className={`app-sidebar sticky top-0 flex h-screen shrink-0 flex-col border-r border-border bg-surface/95 backdrop-blur-sm transition-[width] duration-200 ${collapsed?"w-16":"w-60"}`}>
    <div className={`flex items-center border-b border-border px-3 py-4 ${collapsed?"justify-center":"justify-between"}`}>
     {!collapsed&&<div className="flex min-w-0 items-center gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-signal to-sky-500 shadow-lg shadow-signal/20"><BellRing size={16} className="text-slate-950"/></div><div><p className="text-[11px] font-medium uppercase tracking-[0.2em] text-signal">FCM</p><p className="text-[15px] font-semibold tracking-tight text-white">Broadcast</p></div></div>}
     <button onClick={()=>setCollapsed(v=>!v)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink2 hover:bg-surface2 hover:text-white" aria-label={collapsed?"Expand menu":"Collapse menu"}><Menu size={19}/></button>
