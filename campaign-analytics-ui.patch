@@ -1,0 +1,1036 @@
+From cab331722a53a4d1b9333aedb5082fe0295d98f9 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 04:50:32 +0000
+Subject: [PATCH] Campaign analytics UI: paginated History, Campaign Report,
+ cumulative Dashboard
+
+- History: paginated campaign table (Sent/Delivered/Shown/Opened/Dismissed per campaign), click a row to open its report
+- /history/[id]: Campaign Report with stat cards, delivery funnel, Performance by App and Open Rate donut, live-polling
+- Dashboard replaced with the same layout showing cumulative stats across all campaigns (+ /api/analytics/overview)
+- GET /api/messages: server-side pagination (?page&pageSize) with per-campaign event stats; unpaged calls unchanged
+- Allow Android apps to POST /api/analytics/fcm/event without a login cookie (it validates label + target id)
+- schema.sql: create analytics tables after message_targets so a fresh database can be set up
+---
+ app/(dashboard)/dashboard/DashboardClient.tsx | 100 +++----
+ app/(dashboard)/history/HistoryClient.tsx     | 249 +++++++-----------
+ app/(dashboard)/history/[id]/ReportClient.tsx |  99 +++++++
+ app/(dashboard)/history/[id]/page.tsx         |   5 +
+ app/api/analytics/overview/route.ts           |  41 +++
+ app/api/messages/route.ts                     |  37 ++-
+ components/analytics/AnalyticsView.tsx        | 223 ++++++++++++++++
+ lib/analytics.ts                              |  55 ++++
+ middleware.ts                                 |   4 +-
+ supabase/schema.sql                           |  46 ++--
+ tailwind.config.ts                            |   5 +
+ types/database.ts                             |   2 +-
+ 12 files changed, 609 insertions(+), 257 deletions(-)
+ create mode 100644 app/(dashboard)/history/[id]/ReportClient.tsx
+ create mode 100644 app/(dashboard)/history/[id]/page.tsx
+ create mode 100644 app/api/analytics/overview/route.ts
+ create mode 100644 components/analytics/AnalyticsView.tsx
+ create mode 100644 lib/analytics.ts
+
+diff --git a/app/(dashboard)/dashboard/DashboardClient.tsx b/app/(dashboard)/dashboard/DashboardClient.tsx
+index 9465efb..6282d25 100644
+--- a/app/(dashboard)/dashboard/DashboardClient.tsx
++++ b/app/(dashboard)/dashboard/DashboardClient.tsx
+@@ -1,80 +1,40 @@
+ "use client";
+ 
+-import { useEffect, useState } from "react";
+ import Link from "next/link";
+-import { format } from "date-fns";
+-import { Radio, ArrowUpRight, BarChart3, Send, CheckCheck, TrendingUp, XCircle, TimerReset } from "lucide-react";
+-import { Card, EmptyState } from "@/components/ui/Card";
+-import { Button } from "@/components/ui/Button";
+-import { StatusBadge } from "@/components/StatusBadge";
+-import { FirebaseAppPublic, Message, MessageApp } from "@/types/database";
++import { useCallback, useEffect, useState } from "react";
++import { Radio } from "lucide-react";
++import { AnalyticsView, AxHeader, AxPanel } from "@/components/analytics/AnalyticsView";
++import { type AppRow, type Totals, emptyTotals } from "@/lib/analytics";
+ 
+-function AppPills({ apps, fallback }: { apps?: MessageApp[]; fallback: number }) {
+-  if (!apps?.length) return <span className="text-xs text-ink2">{fallback}</span>;
+-  return (
+-    <div className="flex flex-wrap items-center gap-1.5">
+-      {apps.slice(0, 4).map((app) => (
+-        <div key={app.id} className="group relative" title={app.name}>
+-          {app.app_icon_url ? (
+-            <img src={app.app_icon_url} alt="" className="h-7 w-7 rounded-lg object-cover ring-1 ring-white/10" />
+-          ) : (
+-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface2 text-[9px] font-bold text-white ring-1 ring-white/10">
+-              {app.name.slice(0, 1).toUpperCase()}
+-            </div>
+-          )}
+-        </div>
+-      ))}
+-      {apps.length > 4 && <span className="ml-1 text-[10px] text-ink2">+{apps.length - 4}</span>}
+-    </div>
+-  );
+-}
++type Overview = { totals: Totals; apps: AppRow[]; campaigns: number; appCount: number };
+ 
+ export function DashboardClient() {
+-  const [apps, setApps] = useState<FirebaseAppPublic[]>([]);
+-  const [messages, setMessages] = useState<Message[]>([]);
+-  const [loading, setLoading] = useState(true);
+-  const [apiError, setApiError] = useState<string | null>(null);
++  const [data, setData] = useState<Overview | null>(null);
++  const [lastFetched, setLastFetched] = useState<Date | null>(null);
++  const [error, setError] = useState<string | null>(null);
+ 
+-  useEffect(() => {
+-    Promise.all([
+-      fetch("/api/apps").then(async r => ({ ok:r.ok, data:await r.json() })),
+-      fetch("/api/messages").then(async r => ({ ok:r.ok, data:await r.json() })),
+-    ]).then(([a,m]) => {
+-      if (!a.ok) setApiError(`Apps API: ${a.data?.error ?? "Request failed"}`);
+-      else if (!m.ok) setApiError(`Messages API: ${m.data?.error ?? "Request failed"}`);
+-      else { setApps(a.data.apps ?? []); setMessages(m.data.messages ?? []); }
+-      setLoading(false);
+-    }).catch(e => { setApiError(e instanceof Error ? e.message : "Failed to load dashboard data"); setLoading(false); });
++  const load = useCallback(async () => {
++    try {
++      const res = await fetch("/api/analytics/overview", { cache: "no-store" });
++      const json = await res.json();
++      if (!res.ok) throw new Error(json?.error ?? "Failed to load dashboard data");
++      setData(json); setError(null); setLastFetched(new Date());
++    } catch (e) { setError(e instanceof Error ? e.message : "Failed to load dashboard data"); }
+   }, []);
+ 
+-  const activeApps=apps.filter(a=>a.is_active).length;
+-  const totalSent=messages.reduce((s,m)=>s+(m.total_sent||m.sent_count||0),0);
+-  const totalAccepted=messages.reduce((s,m)=>s+(m.total_sent||0),0);
+-  const totalFailed=messages.reduce((s,m)=>s+(m.delivery_failed||m.total_failed||0),0);
+-  const scheduledCount=messages.filter(m=>m.status==="scheduled").length;
+-  const acceptanceRate=totalSent+totalFailed===0?0:Math.round((totalAccepted/Math.max(1,totalSent+totalFailed))*100);
+-  const stats=[
+-    {label:"Connected apps",value:loading?"—":`${activeApps}/${apps.length}`,icon:BarChart3,tone:"signal"},
+-    {label:"FCM accepted",value:loading?"—":totalAccepted.toLocaleString(),icon:CheckCheck,tone:"success"},
+-    {label:"FCM acceptance rate",value:loading?"—":`${acceptanceRate}%`,icon:TrendingUp,tone:"signal"},
+-    {label:"FCM failed",value:loading?"—":totalFailed.toLocaleString(),icon:XCircle,tone:"danger"},
+-    {label:"Scheduled",value:loading?"—":scheduledCount,icon:TimerReset,tone:"wave"},
+-  ];
++  useEffect(() => { load(); }, [load]);
++  useEffect(() => { const t = setInterval(() => { if (!document.hidden) load(); }, 5000); return () => clearInterval(t); }, [load]);
+ 
+-  return <div className="space-y-8">
+-    <div className="sticky top-0 z-20 -mx-2 mb-4 border-b border-border bg-ink/90 px-2 pb-4 pt-2 backdrop-blur-sm">
+-      <div className="flex flex-wrap items-center justify-between gap-4">
+-        <div><h1 className="text-2xl font-semibold tracking-tight text-white">Broadcast dashboard</h1><p className="mt-1 text-sm text-ink2">Everything you're broadcasting, at a glance.</p></div>
+-        <Link href="/compose"><Button><Radio size={15}/> New broadcast</Button></Link>
+-      </div>
+-    </div>
+-    {apiError&&<Card className="border border-red-500/30 bg-red-500/10"><div className="p-4 text-sm text-red-300"><p className="font-medium">Database/API error</p><p className="mt-1 font-mono text-xs">{apiError}</p></div></Card>}
+-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+-      {stats.map(s=>{const Icon=s.icon;const toneStyles:Record<string,string>={signal:"bg-signal/12 text-signal border-signal/25",wave:"bg-wave/12 text-wave border-wave/25",success:"bg-emerald-500/12 text-emerald-300 border-emerald-400/20",violet:"bg-violet-500/12 text-violet-300 border-violet-400/20",info:"bg-sky-500/12 text-sky-300 border-sky-400/20",warning:"bg-amber-500/12 text-amber-300 border-amber-400/20",danger:"bg-red-500/12 text-red-300 border-red-400/20",muted:"bg-slate-500/12 text-slate-300 border-slate-400/20"};return <Card key={s.label} className="overflow-hidden border border-border bg-surface"><div className="flex items-start justify-between gap-4 p-5"><div><p className="text-[11px] uppercase tracking-[0.18em] text-ink2">{s.label}</p><p className="mt-3 font-mono text-2xl font-medium text-white">{s.value}</p></div><div className={`rounded-xl border p-2.5 ${toneStyles[s.tone]}`}><Icon size={18}/></div></div></Card>})}
+-    </div>
+-    <div>
+-      <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-medium text-white">Recent Activity</h2><Link href="/history" className="flex items-center gap-1 text-xs text-ink2 hover:text-signal">View all <ArrowUpRight size={12}/></Link></div>
+-      {!loading&&messages.length===0?<EmptyState title="No broadcasts yet" description="Once you send or schedule your first message, it'll show up here with live delivery status." action={<Link href="/compose"><Button size="sm">Send your first broadcast</Button></Link>}/>:<Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead><tr className="border-b border-border text-xs text-ink2"><th className="px-5 py-3 font-normal">Message</th><th className="px-5 py-3 font-normal">Apps</th><th className="px-5 py-3 font-normal">Status</th><th className="px-5 py-3 font-normal">When</th></tr></thead><tbody>{messages.slice(0,6).map(m=><tr key={m.id} className="border-b border-border last:border-0"><td className="max-w-[360px] truncate px-5 py-3 text-white">{m.notification_title}</td><td className="px-5 py-3"><AppPills apps={m.apps} fallback={m.total_apps_targeted}/></td><td className="px-5 py-3"><StatusBadge status={m.status}/></td><td className="whitespace-nowrap px-5 py-3 text-xs text-ink2">{format(new Date(m.sent_at??m.scheduled_at??m.created_at),"MMM d, HH:mm")}</td></tr>)}</tbody></table></div></Card>}
+-    </div>
+-  </div>;
+-}
+\ No newline at end of file
++  const n = data?.campaigns ?? 0;
++  const apps = data?.appCount ?? 0;
++  return (
++    <AxPanel>
++      <AxHeader title="Dashboard" lastFetched={lastFetched}
++        actions={<Link href="/compose" className="flex items-center gap-1.5 rounded-lg bg-ax-blue px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#2559d4]"><Radio size={13} /> New broadcast</Link>} />
++      {error && <p className="mx-5 mt-4 rounded-lg border border-ax-red/20 bg-ax-redSoft px-3 py-2 text-xs text-ax-red sm:mx-6">{error}</p>}
++      <AnalyticsView loading={!data} heading="All campaigns"
++        subheading={data ? `Cumulative • ${n} campaign${n === 1 ? "" : "s"} • ${apps} App${apps === 1 ? "" : "s"}` : undefined}
++        totals={data?.totals ?? emptyTotals} apps={data?.apps ?? []} />
++    </AxPanel>
++  );
++}
+diff --git a/app/(dashboard)/history/HistoryClient.tsx b/app/(dashboard)/history/HistoryClient.tsx
+index 963c586..ee50839 100644
+--- a/app/(dashboard)/history/HistoryClient.tsx
++++ b/app/(dashboard)/history/HistoryClient.tsx
+@@ -1,163 +1,106 @@
+ "use client";
+ 
+-import { useEffect, useState } from "react";
+-import { X, Ban, Copy, Check, BarChart3, Radio } from "lucide-react";
+-import { Card, EmptyState } from "@/components/ui/Card";
+-import { StatusBadge } from "@/components/StatusBadge";
+-import { Message, MessageApp, MessageTarget } from "@/types/database";
+-
+-type TargetRow = MessageTarget & { firebase_apps: { name:string; app_icon_url?:string|null }|null };
+-type Analytics = {
+- sent:number; failed:number; delivered:number; received:number; shown:number; opened:number; dismissed:number;
+- deliveryRate:number|null; showRate:number|null; openRate:number|null; dismissRate:number|null;
+- updatedAt:string|null;
+- apps:Array<{target_id:string;app_id:string|null;app_name:string|null;app_icon_url:string|null;sent:number;failed:number;delivered:number;received:number;shown:number;opened:number;dismissed:number;}>;
+-};
+-
+-function formatPakistanDate(value: string | null | undefined) {
+-  if (!value) return "—";
+-  const date = new Date(value);
+-  if (Number.isNaN(date.getTime())) return "—";
+-
+-  const datePart = new Intl.DateTimeFormat("en-US", {
+-    timeZone: "Asia/Karachi",
+-    year: "numeric",
+-    month: "short",
+-    day: "numeric",
+-  }).format(date);
+-
+-  const timePart = new Intl.DateTimeFormat("en-US", {
+-    timeZone: "Asia/Karachi",
+-    hour: "numeric",
+-    minute: "2-digit",
+-    hour12: true,
+-  }).format(date);
+-
+-  return datePart + " • " + timePart;
+-}
+-
+-function AppPills({apps,fallback}:{apps?:MessageApp[];fallback:number}) {
+-  if(!apps?.length)return <span className="text-xs text-ink2">—</span>;
+-  const visibleApps = apps.slice(0, 4);
+-  const remaining = Math.max(0, apps.length - visibleApps.length);
++import Link from "next/link";
++import { useRouter } from "next/navigation";
++import { useCallback, useEffect, useRef, useState } from "react";
++import { Message } from "@/types/database";
++import { AxPanel, AxHeader, Pagination, StatusPill, AppAvatar } from "@/components/analytics/AnalyticsView";
++import { emptyTotals, fmtNum, formatPakistanDate } from "@/lib/analytics";
++
++const COLS = ["sent", "delivered", "shown", "opened", "dismissed"] as const;
++
++function Apps({ apps }: { apps?: Message["apps"] }) {
++  if (!apps?.length) return <span className="text-xs text-ax-soft">—</span>;
++  const visible = apps.slice(0, 3);
+   return (
+-    <div className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap">
+-      {visibleApps.map(app=>app.app_icon_url
+-        ? <img key={app.id} src={app.app_icon_url} alt={app.name} title={app.name} className="h-7 w-7 shrink-0 rounded-md object-cover ring-1 ring-border"/>
+-        : <div key={app.id} title={app.name} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface2 text-[9px] font-bold text-white ring-1 ring-border">{app.name.slice(0,1).toUpperCase()}</div>
+-      )}
+-      {remaining > 0 && <span className="ml-1 shrink-0 text-[10px] font-semibold text-ink2">+{remaining}</span>}
++    <div className="flex items-center gap-1">
++      {visible.map((a) => <AppAvatar key={a.id} name={a.name} icon={a.app_icon_url} size={26} />)}
++      {apps.length > visible.length && <span className="ml-1 text-[11px] font-semibold text-ax-muted">+{apps.length - visible.length}</span>}
+     </div>
+   );
+ }
+ 
+-function CopyField({label,value}:{label:string;value:string}) {
+- const [copied,setCopied]=useState(false);
+- async function copy(){try{await navigator.clipboard.writeText(value);setCopied(true);setTimeout(()=>setCopied(false),1400);}catch{}}
+- return <div className="group rounded-xl border border-border bg-surface2/30 p-3 transition-colors hover:border-signal/40 hover:bg-surface2/60"><div className="mb-2 flex items-center justify-between gap-2"><span className="text-[10px] font-semibold uppercase tracking-[.16em] text-ink2">{label}</span><button onClick={copy} className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-ink2 hover:text-white">{copied?<Check size={11}/>:<Copy size={11}/>} {copied?"Copied":"Copy"}</button></div><p className="whitespace-pre-wrap break-words text-sm leading-6 text-white">{value||"—"}</p></div>;
+-}
+-
+-export function HistoryClient(){
+- const [messages,setMessages]=useState<Message[]>([]);
+- const [loading,setLoading]=useState(true);
+- const [selected,setSelected]=useState<Message|null>(null);
+- const [targets,setTargets]=useState<TargetRow[]>([]);
+- const [loadingTargets,setLoadingTargets]=useState(false);
+- const [analytics,setAnalytics]=useState<Analytics|null>(null);
+- const [analyticsLoading,setAnalyticsLoading]=useState(false);
+-
+- async function loadAnalytics(messageId:string){
+-   setAnalyticsLoading(true);
+-   try{
+-     const res=await fetch("/api/messages/"+messageId+"/analytics",{cache:"no-store"});
+-     const data=await res.json();
+-     if(res.ok)setAnalytics(data);
+-   }finally{setAnalyticsLoading(false);}
+- }
++export function HistoryClient() {
++  const router = useRouter();
++  const [page, setPage] = useState(1);
++  const [pageSize, setPageSize] = useState(10);
++  const [rows, setRows] = useState<Message[]>([]);
++  const [total, setTotal] = useState(0);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++  const [lastFetched, setLastFetched] = useState<Date | null>(null);
++  const requestId = useRef(0);
++
++  const load = useCallback(async (quiet = false) => {
++    const id = ++requestId.current;
++    if (!quiet) setLoading(true);
++    try {
++      const res = await fetch(`/api/messages?page=${page}&pageSize=${pageSize}`, { cache: "no-store" });
++      const data = await res.json();
++      if (id !== requestId.current) return; // a newer request superseded this one
++      if (!res.ok) throw new Error(data?.error ?? "Failed to load history");
++      setRows(data.messages ?? []);
++      setTotal(data.total ?? 0);
++      if (data.page && data.page !== page) setPage(data.page);
++      setError(null);
++      setLastFetched(new Date());
++    } catch (e) {
++      if (id === requestId.current) setError(e instanceof Error ? e.message : "Failed to load history");
++    } finally {
++      if (id === requestId.current) setLoading(false);
++    }
++  }, [page, pageSize]);
++
++  useEffect(() => { load(); }, [load]);
++  useEffect(() => {
++    const timer = setInterval(() => { if (!document.hidden) load(true); }, 5000);
++    return () => clearInterval(timer);
++  }, [load]);
++
++  const open = (id: string) => router.push(`/history/${id}`);
+ 
+- async function openDetail(message:Message){
+-   setSelected(message);
+-   setAnalytics(null);
+-   setLoadingTargets(true);
+-   const res=await fetch(`/api/messages/${message.id}`);
+-   const data=await res.json();
+-   setSelected(data.message??message);
+-   setTargets(data.targets??[]);
+-   setLoadingTargets(false);
+-   loadAnalytics(message.id);
+- }
+-
+- async function loadMessages(){
+-   setLoading(true);
+-   const res=await fetch("/api/messages");
+-   const data=await res.json();
+-   const nextMessages=data.messages??[];
+-   setMessages(nextMessages);
+-   setLoading(false);
+-   if(nextMessages.length>0) await openDetail(nextMessages[0]);
+-   else setSelected(null);
+- }
+-
+- useEffect(()=>{loadMessages();},[]);
+- useEffect(()=>{
+-   if(!selected?.id)return;
+-   const timer=setInterval(()=>loadAnalytics(selected.id),3000);
+-   return()=>clearInterval(timer);
+- },[selected?.id]);
+-
+- async function cancelMessage(message:Message){
+-   if(!confirm("Cancel this scheduled message?"))return;
+-   await fetch(`/api/messages/${message.id}`,{method:"DELETE"});
+-   loadMessages();
+-   setSelected(null);
+- }
+-
+- const title=selected?.notification_title??"";
+- const body=selected?.notification_body??"";
+-
+- return <div className="space-y-6">
+-   <div><h1 className="text-xl font-semibold text-white">History</h1><p className="mt-1 text-sm text-ink2">Every broadcast — sent, scheduled, or drafted.</p></div>
+-   <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+-    <div className="min-w-0">
+-     {!loading&&messages.length===0?<EmptyState title="Nothing sent yet" description="Your broadcast history will show up here once you send or schedule a message."/>:<Card className="overflow-hidden"><div className="w-full"><table className="history-table w-full table-fixed text-left text-sm"><thead><tr className="border-b border-border text-xs text-ink2"><th className="w-[31%] px-3 py-3 font-normal sm:px-5">Apps</th><th className="w-[19%] px-3 py-3 text-center font-normal sm:px-5">FCM Accepted / Failed</th><th className="w-[15%] px-3 py-3 text-center font-normal sm:px-5">Status</th><th className="w-[20%] px-3 py-3 font-normal sm:px-5">When</th></tr></thead><tbody>{messages.map(m=><tr key={m.id} onClick={()=>openDetail(m)} className={`cursor-pointer border-b border-border last:border-0 hover:bg-surface2/50 ${selected?.id===m.id?"bg-surface2/40":""}`}><td className="min-w-0 overflow-hidden px-3 py-3 sm:px-5"><AppPills apps={m.apps} fallback={m.total_apps_targeted}/></td><td className="px-3 py-3 text-center font-mono text-[10px] font-medium text-ink2 sm:px-5 sm:text-xs">{m.total_sent} / {m.total_failed}</td><td className="px-3 py-3 text-center sm:px-5"><StatusBadge status={m.status}/></td><td className="px-3 py-3 text-[10px] leading-4 text-ink2 sm:px-5 sm:text-xs">{formatPakistanDate(m.scheduled_at??m.sent_at??m.created_at)}</td></tr>)}</tbody></table></div></Card>}
+-    </div>
+-    {selected&&<Card className="h-fit min-w-0 p-5 lg:sticky lg:top-6">
+-      <div className="mb-5 flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[.18em] text-ink2">Message details</p><h2 className="mt-1 text-base font-semibold text-white">Broadcast</h2></div><div className="flex items-center gap-2"><StatusBadge status={selected.status}/><button onClick={()=>setSelected(null)} className="rounded-md p-1 text-ink2 hover:bg-surface2 hover:text-white" aria-label="Close"><X size={15}/></button></div></div>
+-      <div className="space-y-3">
+-        <div className="rounded-xl bg-violet-500/10 p-1 transition-colors hover:bg-violet-500/15"><CopyField label="Title" value={title}/></div>
+-        <div className="rounded-xl bg-sky-500/10 p-1 transition-colors hover:bg-sky-500/15"><CopyField label="Body" value={body}/></div>
+-      </div>
+-      <div className="mt-5 border-t border-border pt-4"><div className="mb-3 flex items-center justify-between"><p className="text-xs font-medium text-white">Apps & delivery</p>{["draft","scheduled"].includes(selected.status)&&<button onClick={()=>cancelMessage(selected)} className="flex items-center gap-1 text-xs text-danger hover:underline"><Ban size={11}/> Cancel</button>}</div>
+-      {loadingTargets?<p className="text-xs text-ink2">Loading...</p>:<div className="space-y-2">{targets.map(t=><div key={t.id} className="rounded-lg border border-border p-3"><div className="flex min-w-0 items-center gap-2">{t.firebase_apps?.app_icon_url?<img src={t.firebase_apps.app_icon_url} alt="" className="h-7 w-7 rounded-md object-cover"/>:<div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface2 text-[9px] text-white">{t.firebase_apps?.name?.slice(0,1).toUpperCase()??"?"}</div>}<span className="truncate text-xs text-white">{t.firebase_apps?.name??"Unknown app"}</span><span className={`ml-auto shrink-0 text-[10px] font-semibold uppercase tracking-wide ${t.status==="failed"?"text-danger":"text-ink2"}`}>{t.status==="sent"?"accepted":t.status}</span></div>{t.error_message&&<p className="mt-1 text-xs text-danger">{t.error_message}</p>}</div>)}</div>}
++  return (
++    <AxPanel>
++      <AxHeader title="History" lastFetched={lastFetched} />
++      <div className="px-5 pb-1 pt-5 sm:px-6">
++        <h2 className="text-xl font-semibold tracking-tight text-ax-navy">All campaigns</h2>
++        <p className="mt-1 text-sm text-ax-muted">Every broadcast — sent, scheduled, or drafted. Select one to open its campaign report.</p>
+       </div>
+-      <div className="mt-5 border-t border-border pt-4">
+-        <div className="mb-3 flex items-center justify-between">
+-          <p className="flex items-center gap-2 text-xs font-medium text-white"><BarChart3 size={13}/> Live analytics</p>
+-          <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Radio size={9}/> LIVE</span>
+-        </div>
+-        {analyticsLoading&&!analytics?<p className="text-xs text-ink2">Loading analytics...</p>:analytics?<div className="space-y-4">
+-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+-            {[
+-              ["Sent",analytics.sent],["Delivered",analytics.delivered],["Shown",analytics.shown],["Opened",analytics.opened],
+-            ].map(([label,value])=><div key={String(label)} className="rounded-lg border border-border bg-surface2/30 p-3"><p className="text-[10px] uppercase tracking-wide text-ink2">{label}</p><p className="mt-1 text-lg font-semibold text-white">{Number(value).toLocaleString()}</p></div>)}
+-          </div>
+-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+-            {[
+-              ["Delivery",analytics.deliveryRate],["Show",analytics.showRate],["Open",analytics.openRate],["Dismiss",analytics.dismissRate],
+-            ].map(([label,value])=><div key={String(label)} className="rounded-lg border border-border p-2.5"><p className="text-[10px] text-ink2">{label} rate</p><p className="mt-1 text-sm font-semibold text-white">{value===null?"—":String(value)+"%"}</p></div>)}
+-          </div>
+-          <div className="rounded-lg border border-border overflow-hidden">
+-            <div className="grid grid-cols-[minmax(0,1fr)_52px_60px_48px_48px] gap-2 border-b border-border px-3 py-2 text-[9px] uppercase tracking-wide text-ink2">
+-              <span>App</span><span className="text-right">Sent</span><span className="text-right">Delivered</span><span className="text-right">Open</span><span className="text-right">Dismiss</span>
+-            </div>
+-            {analytics.apps.map(app=><div key={app.target_id} className="grid grid-cols-[minmax(0,1fr)_52px_60px_48px_48px] items-center gap-2 px-3 py-2 text-[10px] text-white">
+-              <span className="truncate">{app.app_name??"Deleted app"}</span><span className="text-right">{app.sent}</span><span className="text-right">{app.delivered}</span><span className="text-right">{app.opened}</span><span className="text-right">{app.dismissed}</span>
+-            </div>)}
+-          </div>
+-          <p className="text-[10px] text-ink2">Delivered currently means an Android app-reported FCM receipt. Firebase BigQuery delivery sync can be added later for authoritative FCM delivery metrics. {analytics.updatedAt?"Updated "+formatPakistanDate(analytics.updatedAt):"Waiting for events…"}</p>
+-        </div>:<p className="text-xs text-ink2">No analytics events yet.</p>}
++      {error && <p className="mx-5 mt-4 rounded-lg border border-ax-red/20 bg-ax-redSoft px-3 py-2 text-xs text-ax-red sm:mx-6">{error}</p>}
++      <div className="mt-4 overflow-x-auto">
++        <table className="w-full min-w-[980px] text-left text-sm">
++          <thead>
++            <tr className="border-y border-ax-line bg-ax-canvas text-xs text-ax-soft">
++              <th className="px-5 py-2.5 font-medium sm:pl-6">Campaign</th>
++              <th className="px-3 py-2.5 font-medium">Apps</th>
++              {COLS.map((c) => <th key={c} className="px-3 py-2.5 text-right font-medium capitalize">{c}</th>)}
++              <th className="px-3 py-2.5 font-medium">Status</th>
++              <th className="px-5 py-2.5 font-medium sm:pr-6">When</th>
++            </tr>
++          </thead>
++          <tbody>
++            {rows.map((m) => {
++              const stats = m.stats ?? emptyTotals;
++              return (
++                <tr key={m.id} tabIndex={0} onClick={() => open(m.id)} onKeyDown={(e) => { if (e.key === "Enter") open(m.id); }}
++                  className="cursor-pointer border-b border-ax-line transition-colors last:border-0 hover:bg-ax-canvas focus-visible:bg-ax-canvas focus-visible:outline-none">
++                  <td className="max-w-[300px] px-5 py-3.5 sm:pl-6">
++                    <Link href={`/history/${m.id}`} onClick={(e) => e.stopPropagation()} className="block truncate font-semibold text-ax-navy hover:text-ax-blue">{m.notification_title || "Untitled broadcast"}</Link>
++                    <p className="mt-0.5 truncate text-xs text-ax-muted">{m.notification_body || "—"}</p>
++                  </td>
++                  <td className="px-3 py-3.5"><Apps apps={m.apps} /></td>
++                  {COLS.map((c) => <td key={c} className={`px-3 py-3.5 text-right tabular-nums ${stats[c] ? "font-medium text-ax-ink" : "text-ax-soft"}`}>{fmtNum(stats[c])}</td>)}
++                  <td className="px-3 py-3.5"><StatusPill status={m.status} /></td>
++                  <td className="whitespace-nowrap px-5 py-3.5 text-xs text-ax-muted sm:pr-6">{formatPakistanDate(m.scheduled_at ?? m.sent_at ?? m.created_at)}</td>
++                </tr>
++              );
++            })}
++            {!loading && rows.length === 0 && <tr><td colSpan={9} className="px-6 py-16 text-center text-sm text-ax-muted">Nothing sent yet. Your broadcast history will show up here once you send or schedule a message.</td></tr>}
++            {loading && rows.length === 0 && <tr><td colSpan={9} className="px-6 py-16 text-center text-sm text-ax-soft">Loading…</td></tr>}
++          </tbody>
++        </table>
+       </div>
+-    </Card>}
+-   </div>
+- </div>;
+-}
+\ No newline at end of file
++      <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }} />
++    </AxPanel>
++  );
++}
+diff --git a/app/(dashboard)/history/[id]/ReportClient.tsx b/app/(dashboard)/history/[id]/ReportClient.tsx
+new file mode 100644
+index 0000000..1b69290
+--- /dev/null
++++ b/app/(dashboard)/history/[id]/ReportClient.tsx
+@@ -0,0 +1,99 @@
++"use client";
++
++import Link from "next/link";
++import { useCallback, useEffect, useState } from "react";
++import { Ban, Check, Copy } from "lucide-react";
++import { Message, MessageTarget } from "@/types/database";
++import { AnalyticsView, AxHeader, AxPanel, StatusPill } from "@/components/analytics/AnalyticsView";
++import { type AppRow, type Totals, emptyTotals, formatPakistanDay, toTotals } from "@/lib/analytics";
++
++type TargetRow = MessageTarget & { app_name: string | null };
++
++function CopyField({ label, value }: { label: string; value: string }) {
++  const [copied, setCopied] = useState(false);
++  async function copy() { try { await navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1400); } catch {} }
++  return (
++    <div className="rounded-xl border border-ax-line bg-white p-3.5">
++      <div className="mb-1.5 flex items-center justify-between gap-2">
++        <span className="text-[11px] font-semibold uppercase tracking-wider text-ax-soft">{label}</span>
++        <button onClick={copy} className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${copied ? "bg-ax-greenSoft text-ax-green" : "text-ax-muted hover:bg-ax-canvas hover:text-ax-navy"}`}>{copied ? <Check size={11} /> : <Copy size={11} />}{copied ? "Copied" : "Copy"}</button>
++      </div>
++      <p className="whitespace-pre-wrap break-words text-sm leading-6 text-ax-ink">{value || "—"}</p>
++    </div>
++  );
++}
++
++export function ReportClient({ id }: { id: string }) {
++  const [message, setMessage] = useState<Message | null>(null);
++  const [targets, setTargets] = useState<TargetRow[]>([]);
++  const [data, setData] = useState<{ totals: Totals; apps: AppRow[] } | null>(null);
++  const [lastFetched, setLastFetched] = useState<Date | null>(null);
++  const [notFound, setNotFound] = useState(false);
++  const [error, setError] = useState<string | null>(null);
++
++  const refresh = useCallback(async () => {
++    try {
++      const [m, a] = await Promise.all([
++        fetch(`/api/messages/${id}`, { cache: "no-store" }),
++        fetch(`/api/messages/${id}/analytics`, { cache: "no-store" }),
++      ]);
++      if (m.status === 404 || a.status === 404) { setNotFound(true); return; }
++      const md = await m.json(); const ad = await a.json();
++      if (!m.ok) throw new Error(md?.error ?? "Failed to load campaign");
++      if (!a.ok) throw new Error(ad?.error ?? "Failed to load analytics");
++      setMessage(md.message); setTargets(md.targets ?? []);
++      setData({
++        totals: toTotals(ad),
++        apps: (ad.apps ?? []).map((x: Record<string, unknown>) => ({ id: String(x.target_id), name: String(x.app_name ?? "Deleted app"), icon: (x.app_icon_url as string | null) ?? null, ...toTotals(x as never) })),
++      });
++      setError(null); setLastFetched(new Date());
++    } catch (e) { setError(e instanceof Error ? e.message : "Failed to load campaign"); }
++  }, [id]);
++
++  useEffect(() => { refresh(); }, [refresh]);
++  useEffect(() => { const t = setInterval(() => { if (!document.hidden) refresh(); }, 3000); return () => clearInterval(t); }, [refresh]);
++
++  async function cancel() {
++    if (!confirm("Cancel this scheduled message?")) return;
++    await fetch(`/api/messages/${id}`, { method: "DELETE" });
++    refresh();
++  }
++
++  if (notFound) return (
++    <AxPanel><AxHeader title="Campaign Report" backHref="/history" lastFetched={null} />
++      <div className="px-6 py-16 text-center"><p className="text-sm font-medium text-ax-navy">Campaign not found</p><p className="mt-1 text-sm text-ax-muted">It may have been deleted.</p><Link href="/history" className="mt-4 inline-block text-sm font-medium text-ax-blue hover:underline">Back to History</Link></div>
++    </AxPanel>
++  );
++
++  const appCount = targets.length || message?.total_apps_targeted || 0;
++  const when = message ? (message.sent_at ?? message.scheduled_at ?? message.created_at) : null;
++  const failedTargets = targets.filter((t) => t.status === "failed" && t.error_message);
++  const cancellable = message && ["draft", "scheduled"].includes(message.status);
++
++  return (
++    <AxPanel>
++      <AxHeader title="Campaign Report" backHref="/history" lastFetched={lastFetched}
++        actions={cancellable ? <button onClick={cancel} className="flex items-center gap-1.5 rounded-lg border border-ax-red/25 px-2.5 py-1.5 text-xs font-medium text-ax-red transition-colors hover:bg-ax-redSoft"><Ban size={12} /> Cancel</button> : undefined} />
++      {error && <p className="mx-5 mt-4 rounded-lg border border-ax-red/20 bg-ax-redSoft px-3 py-2 text-xs text-ax-red sm:mx-6">{error}</p>}
++      <AnalyticsView
++        loading={!data}
++        heading={message?.notification_title || (message ? "Untitled broadcast" : "Loading…")}
++        subheading={message ? `${formatPakistanDay(when)} • ${appCount} App${appCount === 1 ? "" : "s"}` : undefined}
++        aside={message ? <StatusPill status={message.status} /> : undefined}
++        totals={data?.totals ?? emptyTotals} apps={data?.apps ?? []}>
++        {message && (
++          <div className="mt-5 grid gap-3 md:grid-cols-2">
++            <CopyField label="Title" value={message.notification_title ?? ""} />
++            <CopyField label="Body" value={message.notification_body ?? ""} />
++          </div>
++        )}
++        {failedTargets.length > 0 && (
++          <div className="mt-4 rounded-xl border border-ax-red/20 bg-ax-redSoft p-3.5">
++            <p className="text-xs font-semibold text-ax-red">Delivery issues</p>
++            <ul className="mt-1.5 space-y-1">{failedTargets.map((t) => <li key={t.id} className="text-xs text-ax-ink"><b>{t.app_name ?? "Unknown app"}:</b> {t.error_message}</li>)}</ul>
++          </div>
++        )}
++      </AnalyticsView>
++    </AxPanel>
++  );
++}
+diff --git a/app/(dashboard)/history/[id]/page.tsx b/app/(dashboard)/history/[id]/page.tsx
+new file mode 100644
+index 0000000..63e0ae5
+--- /dev/null
++++ b/app/(dashboard)/history/[id]/page.tsx
+@@ -0,0 +1,5 @@
++import { ReportClient } from "./ReportClient";
++
++export default function CampaignReportPage({ params }: { params: { id: string } }) {
++  return <ReportClient id={params.id} />;
++}
+diff --git a/app/api/analytics/overview/route.ts b/app/api/analytics/overview/route.ts
+new file mode 100644
+index 0000000..f543ce8
+--- /dev/null
++++ b/app/api/analytics/overview/route.ts
+@@ -0,0 +1,41 @@
++import { NextResponse } from "next/server";
++import { query } from "@/lib/db";
++import { toTotals, emptyTotals, type AppRow, type Totals } from "@/lib/analytics";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++/** Cumulative analytics across every broadcast, plus a per-app breakdown. */
++export async function GET() {
++  try {
++    const perApp = await query<Record<string, unknown>>(`
++      SELECT mt.app_id, COALESCE(fa.name, MAX(mt.app_name), 'Deleted app') AS name, fa.app_icon_url AS icon,
++             COUNT(*) FILTER (WHERE mt.status='sent') AS sent,
++             COUNT(*) FILTER (WHERE mt.status='failed') AS failed,
++             COALESCE(SUM(s.delivered_count),0) AS delivered, COALESCE(SUM(s.shown_count),0) AS shown,
++             COALESCE(SUM(s.opened_count),0) AS opened, COALESCE(SUM(s.dismissed_count),0) AS dismissed,
++             MAX(s.updated_at) AS updated_at
++      FROM public.message_targets mt
++      LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
++      LEFT JOIN public.fcm_analytics_summary s ON s.message_target_id=mt.id
++      GROUP BY mt.app_id, fa.name, fa.app_icon_url
++      ORDER BY sent DESC, name ASC`);
++    const apps: AppRow[] = perApp.rows.map((row) => ({ id: String(row.app_id ?? row.name), name: String(row.name), icon: (row.icon as string | null) ?? null, ...toTotals(row as never) }));
++    const totals = apps.reduce<Totals>((acc, a) => ({
++      sent: acc.sent + a.sent, failed: acc.failed + a.failed, delivered: acc.delivered + a.delivered,
++      shown: acc.shown + a.shown, opened: acc.opened + a.opened, dismissed: acc.dismissed + a.dismissed,
++    }), { ...emptyTotals });
++    const counts = await query<{ campaigns: string; apps: string }>(
++      `SELECT (SELECT COUNT(*) FROM public.messages) AS campaigns, (SELECT COUNT(*) FROM public.firebase_apps) AS apps`);
++    const updatedAt = perApp.rows.reduce<string | null>((latest, row) => {
++      const v = row.updated_at ? new Date(row.updated_at as string).toISOString() : null;
++      return v && (!latest || v > latest) ? v : latest;
++    }, null);
++    return NextResponse.json({
++      totals, apps, updatedAt,
++      campaigns: Number(counts.rows[0]?.campaigns ?? 0), appCount: Number(counts.rows[0]?.apps ?? 0),
++    });
++  } catch (error) {
++    return NextResponse.json({ error: error instanceof Error ? error.message : "Database error" }, { status: 500 });
++  }
++}
+diff --git a/app/api/messages/route.ts b/app/api/messages/route.ts
+index c269be0..7c649df 100644
+--- a/app/api/messages/route.ts
++++ b/app/api/messages/route.ts
+@@ -5,6 +5,7 @@ import { getCurrentUserId } from "@/lib/current-user";
+ import { dispatchMessage } from "@/lib/dispatch-message";
+ import type { PoolClient } from "pg";
+ import { Message } from "@/types/database";
++import { toTotals } from "@/lib/analytics";
+ 
+ export const runtime = "nodejs";
+ // Send-now dispatches every selected app inside this request. Give it room on
+@@ -17,20 +18,34 @@ const baseSchema = z.object({
+   notificationTitle:z.string().optional(), notificationBody:z.string().optional(), notificationImage:z.string().optional(),
+ });
+ 
+-export async function GET(){
++export async function GET(req:NextRequest){
+   try{
++    const params=req.nextUrl.searchParams;
++    const paged=params.has("page");
++    const pageSize=Math.min(100,Math.max(1,parseInt(params.get("pageSize")??"10",10)||10));
++    const total=Number((await query<{count:string}>("SELECT COUNT(*) FROM public.messages")).rows[0]?.count??0);
++    const totalPages=Math.max(1,Math.ceil(total/pageSize));
++    const page=Math.min(totalPages,Math.max(1,parseInt(params.get("page")??"1",10)||1));
+     const r=await query(`
+-      SELECT m.*,
+-        COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
+-          'id',COALESCE(mt.app_id,mt.id),'name',COALESCE(fa.name,mt.app_name,'Deleted app'),'app_icon_url',fa.app_icon_url
+-        )) FILTER (WHERE mt.id IS NOT NULL),'[]'::jsonb) AS apps
+-      FROM public.messages m
+-      LEFT JOIN public.message_targets mt ON mt.message_id=m.id
+-      LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
+-      GROUP BY m.id
++      SELECT m.*, a.apps, a.sent, a.failed, a.delivered, a.shown, a.opened, a.dismissed
++      FROM (SELECT * FROM public.messages ORDER BY created_at DESC ${paged?"LIMIT $1 OFFSET $2":""}) m
++      LEFT JOIN LATERAL (
++        SELECT COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
++                 'id',COALESCE(mt.app_id,mt.id),'name',COALESCE(fa.name,mt.app_name,'Deleted app'),'app_icon_url',fa.app_icon_url
++               )) FILTER (WHERE mt.id IS NOT NULL),'[]'::jsonb) AS apps,
++               COUNT(*) FILTER (WHERE mt.status='sent') AS sent,
++               COUNT(*) FILTER (WHERE mt.status='failed') AS failed,
++               COALESCE(SUM(s.delivered_count),0) AS delivered, COALESCE(SUM(s.shown_count),0) AS shown,
++               COALESCE(SUM(s.opened_count),0) AS opened, COALESCE(SUM(s.dismissed_count),0) AS dismissed
++        FROM public.message_targets mt
++        LEFT JOIN public.firebase_apps fa ON fa.id=mt.app_id
++        LEFT JOIN public.fcm_analytics_summary s ON s.message_target_id=mt.id
++        WHERE mt.message_id=m.id
++      ) a ON true
+       ORDER BY m.created_at DESC
+-    `);
+-    return NextResponse.json({messages:r.rows});
++    `,paged?[pageSize,(page-1)*pageSize]:[]);
++    const messages=r.rows.map(({sent,failed,delivered,shown,opened,dismissed,...message})=>({...message,stats:toTotals({sent,failed,delivered,shown,opened,dismissed})}));
++    return NextResponse.json({messages,page,pageSize,total,totalPages});
+   }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Database error"},{status:500});}
+ }
+ 
+diff --git a/components/analytics/AnalyticsView.tsx b/components/analytics/AnalyticsView.tsx
+new file mode 100644
+index 0000000..01f5a4e
+--- /dev/null
++++ b/components/analytics/AnalyticsView.tsx
+@@ -0,0 +1,223 @@
++"use client";
++
++import Link from "next/link";
++import { useEffect, useState, type ReactNode } from "react";
++import { ArrowLeft, Send, CheckCircle2, Eye, MousePointerClick, BellOff } from "lucide-react";
++import { type AppRow, type Totals, fmtNum, fmtPct, rates, timeAgo } from "@/lib/analytics";
++
++/* ------------------------------------------------------------------ shell */
++
++export function AxPanel({ children }: { children: ReactNode }) {
++  return <div className="overflow-hidden rounded-2xl border border-ax-line bg-white text-ax-ink shadow-[0_24px_60px_-24px_rgba(0,0,0,.65)]">{children}</div>;
++}
++
++export function LiveBadge({ lastFetched }: { lastFetched: Date | null }) {
++  const [, tick] = useState(0);
++  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 5000); return () => clearInterval(id); }, []);
++  return (
++    <div className="flex items-center gap-2">
++      <span className="inline-flex items-center gap-1.5 rounded-full border border-ax-green/20 bg-ax-greenSoft px-2.5 py-1 text-[11px] font-bold tracking-wide text-ax-green">
++        <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping2 rounded-full bg-ax-green" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ax-green" /></span>
++        LIVE
++      </span>
++      <span className="hidden text-[11px] text-ax-soft sm:inline">Updated {timeAgo(lastFetched)}</span>
++    </div>
++  );
++}
++
++export function AxHeader({ title, backHref, lastFetched, actions }: { title: string; backHref?: string; lastFetched: Date | null; actions?: ReactNode }) {
++  return (
++    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ax-line px-5 py-3.5 sm:px-6">
++      <div className="flex min-w-0 items-center gap-3">
++        {backHref && <Link href={backHref} aria-label="Back" className="-ml-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-ax-navy transition-colors hover:bg-ax-canvas"><ArrowLeft size={17} /></Link>}
++        <h1 className="truncate text-[15px] font-semibold text-ax-navy">{title}</h1>
++      </div>
++      <div className="flex items-center gap-3">{actions}<LiveBadge lastFetched={lastFetched} /></div>
++    </div>
++  );
++}
++
++/* ----------------------------------------------------------------- pieces */
++
++const STATS = [
++  { key: "sent", label: "Sent", icon: Send, chip: "bg-ax-blueSoft text-ax-blue" },
++  { key: "delivered", label: "Delivered", icon: CheckCircle2, chip: "bg-ax-greenSoft text-ax-green" },
++  { key: "shown", label: "Shown", icon: Eye, chip: "bg-ax-purpleSoft text-ax-purple" },
++  { key: "opened", label: "Opened", icon: MousePointerClick, chip: "bg-ax-orangeSoft text-ax-orange" },
++  { key: "dismissed", label: "Dismissed", icon: BellOff, chip: "bg-ax-redSoft text-ax-red" },
++] as const;
++
++function StatCards({ totals, loading }: { totals: Totals; loading: boolean }) {
++  return (
++    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
++      {STATS.map(({ key, label, icon: Icon, chip }) => (
++        <div key={key} className="rounded-xl border border-ax-line bg-white p-4 shadow-[0_1px_2px_rgba(15,27,61,.04)]">
++          <span className={`flex h-10 w-10 items-center justify-center rounded-full ${chip}`}><Icon size={18} strokeWidth={2.2} /></span>
++          <p className="mt-3 text-[26px] font-semibold leading-none tracking-tight text-ax-navy tabular-nums">{loading ? "—" : fmtNum(totals[key])}</p>
++          <p className="mt-1.5 text-sm text-ax-muted">{label}</p>
++        </div>
++      ))}
++    </div>
++  );
++}
++
++const ARROW = 16;
++const clipFirst = `polygon(0 0,calc(100% - ${ARROW}px) 0,100% 50%,calc(100% - ${ARROW}px) 100%,0 100%)`;
++const clipMid = `polygon(0 0,calc(100% - ${ARROW}px) 0,100% 50%,calc(100% - ${ARROW}px) 100%,0 100%,${ARROW}px 50%)`;
++const clipLast = `polygon(0 0,100% 0,100% 100%,0 100%,${ARROW}px 50%)`;
++
++function Funnel({ totals, loading }: { totals: Totals; loading: boolean }) {
++  const r = rates(totals);
++  const value = (n: number) => (loading ? "—" : fmtNum(n));
++  const rate = (v: number | null) => (loading ? "—" : fmtPct(v));
++  const rateCls = "flex flex-[0.8] flex-col justify-center bg-[#f1f5fc] py-3 pl-9 pr-7 text-ax-navy -ml-3";
++  return (
++    <div>
++      <div className="overflow-x-auto">
++        <div className="flex min-w-[640px] text-white">
++          <div className="flex flex-[1.2] flex-col justify-center rounded-l-xl bg-gradient-to-r from-[#2f6df6] to-[#3b9bff] py-3 pl-5 pr-8" style={{ clipPath: clipFirst }}>
++            <span className="text-[22px] font-semibold leading-tight tabular-nums">{value(totals.sent)}</span><span className="text-[13px] opacity-90">Sent</span>
++          </div>
++          <div className={rateCls} style={{ clipPath: clipMid }}><span className="text-[17px] font-semibold leading-tight tabular-nums">{rate(r.delivery)}</span><span className="text-xs text-ax-muted">Delivery Rate</span></div>
++          <div className="-ml-3 flex flex-[1.2] flex-col justify-center bg-gradient-to-r from-[#16b364] to-[#34d399] py-3 pl-9 pr-8" style={{ clipPath: clipMid }}>
++            <span className="text-[22px] font-semibold leading-tight tabular-nums">{value(totals.delivered)}</span><span className="text-[13px] opacity-90">Delivered</span>
++          </div>
++          <div className={rateCls} style={{ clipPath: clipMid }}><span className="text-[17px] font-semibold leading-tight tabular-nums">{rate(r.show)}</span><span className="text-xs text-ax-muted">Show Rate</span></div>
++          <div className="-ml-3 flex flex-[1.2] flex-col justify-center rounded-r-xl bg-gradient-to-r from-[#7c5cf5] to-[#9b8cff] py-3 pl-9 pr-5" style={{ clipPath: clipLast }}>
++            <span className="text-[22px] font-semibold leading-tight tabular-nums">{value(totals.shown)}</span><span className="text-[13px] opacity-90">Shown</span>
++          </div>
++        </div>
++      </div>
++      <p className="mt-2 text-[11px] leading-4 text-ax-soft">Sent = apps accepted by FCM. Delivered, Shown, Opened and Dismissed are reported live by your Android apps.</p>
++    </div>
++  );
++}
++
++export function AppAvatar({ name, icon, size = 28 }: { name: string; icon: string | null; size?: number }) {
++  const style = { width: size, height: size };
++  return icon
++    ? <img src={icon} alt="" title={name} style={style} className="shrink-0 rounded-lg object-cover ring-1 ring-ax-line" />
++    : <span title={name} style={style} className="flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ax-blue to-[#3b9bff] text-[11px] font-bold text-white">{name.slice(0, 1).toUpperCase()}</span>;
++}
++
++function PerformanceTable({ apps, loading }: { apps: AppRow[]; loading: boolean }) {
++  const cols: Array<keyof Totals> = ["sent", "delivered", "shown", "opened", "dismissed"];
++  return (
++    <div className="min-w-0 rounded-xl border border-ax-line bg-white shadow-[0_1px_2px_rgba(15,27,61,.04)]">
++      <h3 className="px-4 pb-1 pt-4 text-sm font-semibold text-ax-navy">Performance by App</h3>
++      <div className="overflow-x-auto">
++        <table className="w-full min-w-[460px] text-sm">
++          <thead>
++            <tr className="text-xs text-ax-soft">
++              <th className="px-4 py-2.5 text-left font-medium">App</th>
++              {cols.map((c) => <th key={c} className="px-3 py-2.5 text-right font-medium capitalize">{c}</th>)}
++            </tr>
++          </thead>
++          <tbody>
++            {apps.map((a) => (
++              <tr key={a.id} className="border-t border-ax-line">
++                <td className="px-4 py-3"><div className="flex min-w-0 items-center gap-2.5"><AppAvatar name={a.name} icon={a.icon} size={26} /><span className="truncate text-[13px] font-medium text-ax-ink">{a.name}</span></div></td>
++                {cols.map((c) => <td key={c} className="px-3 py-3 text-right tabular-nums text-ax-ink">{fmtNum(a[c])}</td>)}
++              </tr>
++            ))}
++            {!apps.length && <tr className="border-t border-ax-line"><td colSpan={6} className="px-4 py-8 text-center text-sm text-ax-soft">{loading ? "Loading…" : "No app activity yet."}</td></tr>}
++          </tbody>
++        </table>
++      </div>
++    </div>
++  );
++}
++
++function OpenDonut({ totals }: { totals: Totals }) {
++  const r = rates(totals);
++  const R = 52, C = 2 * Math.PI * R;
++  const base = Math.max(totals.shown, totals.opened + totals.dismissed);
++  const has = base > 0;
++  const openLen = has ? C * (totals.opened / base) : 0;
++  const disLen = has ? C * (totals.dismissed / base) : 0;
++  const share = (n: number) => (has ? fmtPct((n / base) * 100) : "—");
++  return (
++    <div className="rounded-xl border border-ax-line bg-white p-4 shadow-[0_1px_2px_rgba(15,27,61,.04)]">
++      <h3 className="text-sm font-semibold text-ax-navy">Open Rate</h3>
++      <div className="mt-3 flex items-center justify-center gap-5">
++        <div className="relative h-[136px] w-[136px] shrink-0">
++          <svg viewBox="0 0 136 136" className="h-full w-full -rotate-90" aria-hidden="true">
++            <circle cx="68" cy="68" r={R} fill="none" stroke="#eef2fa" strokeWidth="16" />
++            {has && <circle cx="68" cy="68" r={R} fill="none" stroke="#ef4466" strokeWidth="16" strokeDasharray={`${disLen} ${C - disLen}`} strokeDashoffset={-openLen} />}
++            {has && <circle cx="68" cy="68" r={R} fill="none" stroke="#16b364" strokeWidth="16" strokeDasharray={`${openLen} ${C - openLen}`} />}
++          </svg>
++          <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-xl font-semibold text-ax-navy tabular-nums">{fmtPct(r.open)}</span><span className="text-[11px] text-ax-muted">Open Rate</span></div>
++        </div>
++        <ul className="space-y-3 text-sm">
++          <li><span className="flex items-center gap-2 font-medium text-ax-ink"><i className="h-2 w-2 rounded-full bg-ax-green" />Opened</span><span className="ml-4 text-xs text-ax-muted">{share(totals.opened)}</span></li>
++          <li><span className="flex items-center gap-2 font-medium text-ax-ink"><i className="h-2 w-2 rounded-full bg-ax-red" />Dismissed</span><span className="ml-4 text-xs text-ax-muted">{share(totals.dismissed)}</span></li>
++        </ul>
++      </div>
++    </div>
++  );
++}
++
++/* ------------------------------------------------------------ composition */
++
++export function AnalyticsView({ heading, subheading, aside, totals, apps, loading = false, children }: {
++  heading: ReactNode; subheading?: ReactNode; aside?: ReactNode; totals: Totals; apps: AppRow[]; loading?: boolean; children?: ReactNode;
++}) {
++  return (
++    <div className="px-5 pb-6 pt-5 sm:px-6">
++      <div className="flex flex-wrap items-start justify-between gap-3">
++        <div className="min-w-0"><h2 className="break-words text-xl font-semibold tracking-tight text-ax-navy">{heading}</h2>{subheading && <p className="mt-1 text-sm text-ax-muted">{subheading}</p>}</div>
++        {aside}
++      </div>
++      <div className="mt-5"><StatCards totals={totals} loading={loading} /></div>
++      <div className="mt-5"><Funnel totals={totals} loading={loading} /></div>
++      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]"><PerformanceTable apps={apps} loading={loading} /><OpenDonut totals={totals} /></div>
++      {children}
++    </div>
++  );
++}
++
++/* ------------------------------------------------------------ small bits */
++
++const PILL: Record<string, { label: string; cls: string }> = {
++  draft: { label: "Draft", cls: "bg-slate-100 text-slate-600" },
++  scheduled: { label: "Scheduled", cls: "bg-ax-blueSoft text-ax-blue" },
++  sending: { label: "Sending", cls: "bg-ax-blueSoft text-ax-blue" },
++  sent: { label: "Sent", cls: "bg-ax-greenSoft text-ax-green" },
++  partial_failure: { label: "Partial failure", cls: "bg-ax-orangeSoft text-ax-orange" },
++  failed: { label: "Failed", cls: "bg-ax-redSoft text-ax-red" },
++  canceled: { label: "Canceled", cls: "bg-slate-100 text-slate-500" },
++};
++
++export function StatusPill({ status }: { status: string }) {
++  const p = PILL[status] ?? { label: status, cls: "bg-slate-100 text-slate-600" };
++  return <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${p.cls}`}>{p.label}</span>;
++}
++
++export function Pagination({ page, pageSize, total, onPage, onPageSize }: { page: number; pageSize: number; total: number; onPage: (p: number) => void; onPageSize: (n: number) => void }) {
++  const pages = Math.max(1, Math.ceil(total / pageSize));
++  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
++  const to = Math.min(total, page * pageSize);
++  const items: Array<number | "…"> = [];
++  const add = (v: number | "…") => { if (items[items.length - 1] !== v) items.push(v); };
++  for (let p = 1; p <= pages; p++) { if (p === 1 || p === pages || Math.abs(p - page) <= 1) add(p); else add("…"); }
++  const btn = "flex h-8 min-w-[32px] items-center justify-center rounded-lg border px-2 text-xs font-medium transition-colors";
++  return (
++    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ax-line px-5 py-3 sm:px-6">
++      <div className="flex items-center gap-3 text-xs text-ax-muted">
++        <span>Showing <b className="font-semibold text-ax-ink">{from}–{to}</b> of <b className="font-semibold text-ax-ink">{fmtNum(total)}</b></span>
++        <label className="flex items-center gap-1.5">Rows
++          <select value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))} className="h-8 rounded-lg border border-ax-line bg-white px-1.5 text-xs text-ax-ink outline-none focus:border-ax-blue">
++            {[10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
++          </select>
++        </label>
++      </div>
++      <nav className="flex items-center gap-1" aria-label="Pagination">
++        <button onClick={() => onPage(page - 1)} disabled={page <= 1} className={`${btn} border-ax-line bg-white text-ax-ink hover:bg-ax-canvas disabled:cursor-not-allowed disabled:opacity-40`}>Prev</button>
++        {items.map((it, i) => it === "…"
++          ? <span key={"e" + i} className="px-1 text-xs text-ax-soft">…</span>
++          : <button key={it} onClick={() => onPage(it)} aria-current={it === page ? "page" : undefined} className={`${btn} ${it === page ? "border-ax-blue bg-ax-blue text-white" : "border-ax-line bg-white text-ax-ink hover:bg-ax-canvas"}`}>{it}</button>)}
++        <button onClick={() => onPage(page + 1)} disabled={page >= pages} className={`${btn} border-ax-line bg-white text-ax-ink hover:bg-ax-canvas disabled:cursor-not-allowed disabled:opacity-40`}>Next</button>
++      </nav>
++    </div>
++  );
++}
+diff --git a/lib/analytics.ts b/lib/analytics.ts
+new file mode 100644
+index 0000000..316dbac
+--- /dev/null
++++ b/lib/analytics.ts
+@@ -0,0 +1,55 @@
++export type Totals = { sent: number; failed: number; delivered: number; shown: number; opened: number; dismissed: number };
++export type AppRow = Totals & { id: string; name: string; icon: string | null };
++
++export const emptyTotals: Totals = { sent: 0, failed: 0, delivered: 0, shown: 0, opened: 0, dismissed: 0 };
++
++export function toTotals(row: Partial<Record<keyof Totals, unknown>> | null | undefined): Totals {
++  const n = (v: unknown) => Number(v ?? 0) || 0;
++  return { sent: n(row?.sent), failed: n(row?.failed), delivered: n(row?.delivered), shown: n(row?.shown), opened: n(row?.opened), dismissed: n(row?.dismissed) };
++}
++
++export function pct(value: number, of: number): number | null {
++  return of > 0 ? (value / of) * 100 : null;
++}
++
++/**
++ * Funnel rates. "Sent" is the number of apps FCM accepted for a topic send, while Delivered/Shown/
++ * Opened/Dismissed are device events reported by the apps, so Delivered can legitimately exceed Sent.
++ * In that case a delivery *rate* is meaningless, so it is returned as null (shown as "—").
++ */
++export function rates(t: Totals) {
++  return {
++    delivery: t.sent > 0 && t.delivered <= t.sent ? pct(t.delivered, t.sent) : null,
++    show: t.shown <= t.delivered ? pct(t.shown, t.delivered) : null,
++    open: pct(t.opened, t.shown),
++    dismiss: pct(t.dismissed, t.shown),
++  };
++}
++
++export const fmtNum = (n: number) => n.toLocaleString("en-US");
++export const fmtPct = (v: number | null, digits = 1) => (v === null ? "—" : `${v.toFixed(digits)}%`);
++
++export function formatPakistanDate(value: string | null | undefined) {
++  if (!value) return "—";
++  const date = new Date(value);
++  if (Number.isNaN(date.getTime())) return "—";
++  const datePart = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Karachi", year: "numeric", month: "short", day: "numeric" }).format(date);
++  const timePart = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true }).format(date);
++  return datePart + " • " + timePart;
++}
++
++export function formatPakistanDay(value: string | null | undefined) {
++  if (!value) return "—";
++  const date = new Date(value);
++  if (Number.isNaN(date.getTime())) return "—";
++  return new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Karachi", year: "numeric", month: "short", day: "numeric" }).format(date);
++}
++
++export function timeAgo(from: Date | null, now = Date.now()) {
++  if (!from) return "waiting for data";
++  const s = Math.max(0, Math.round((now - from.getTime()) / 1000));
++  if (s < 5) return "just now";
++  if (s < 60) return `${s}s ago`;
++  const m = Math.round(s / 60);
++  return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`;
++}
+diff --git a/middleware.ts b/middleware.ts
+index 14f5448..29c1b3a 100644
+--- a/middleware.ts
++++ b/middleware.ts
+@@ -1,7 +1,9 @@
+ import { NextResponse, type NextRequest } from "next/server";
+ import { AUTH_COOKIE, isValidAuthToken } from "@/lib/auth-edge";
+ 
+-const PUBLIC_PATHS = ["/login", "/api/auth/login"];
++// The analytics event endpoint is called by the Android apps (no login cookie). It only accepts
++// events whose analytics label + target id match a real broadcast target.
++const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/analytics/fcm/event"];
+ 
+ export async function middleware(request: NextRequest) {
+   const pathname = request.nextUrl.pathname;
+diff --git a/supabase/schema.sql b/supabase/schema.sql
+index c291000..6f81d1f 100644
+--- a/supabase/schema.sql
++++ b/supabase/schema.sql
+@@ -63,6 +63,31 @@ create index if not exists messages_status_idx on messages(status);
+ create index if not exists messages_scheduled_at_idx on messages(scheduled_at);
+ create unique index if not exists messages_analytics_label_idx on messages(analytics_label);
+ 
++-- ----------------------------------------------------------------------------
++-- 3. message_targets — one row per (message, app) pair, tracks delivery
++-- ----------------------------------------------------------------------------
++create table if not exists message_targets (
++  id              uuid primary key default gen_random_uuid(),
++  message_id      uuid not null references messages(id) on delete cascade,
++  -- App deletion is handled transactionally by the app DELETE API: only that
++  -- app's target rows are removed, while other apps on the same message remain.
++  app_id          uuid references firebase_apps(id) on delete cascade,
++  app_name        text,
++  status          text not null default 'pending' check (status in ('pending', 'sent', 'failed')),
++  fcm_message_id  text,
++  error_message   text,
++  sent_at         timestamptz,
++  created_at      timestamptz not null default now()
++);
++
++create index if not exists message_targets_message_id_idx on message_targets(message_id);
++create index if not exists message_targets_app_id_idx on message_targets(app_id);
++create unique index if not exists message_targets_unique_pair on message_targets(message_id, app_id);
++
++-- ----------------------------------------------------------------------------
++-- 4. realtime analytics — device-reported events + per-target summary
++--    (created after message_targets because both tables reference it)
++-- ----------------------------------------------------------------------------
+ create table if not exists fcm_analytics_events (
+   id uuid primary key default gen_random_uuid(),
+   message_id uuid not null references messages(id) on delete cascade,
+@@ -97,27 +122,6 @@ create table if not exists fcm_analytics_summary (
+ 
+ create index if not exists fcm_analytics_summary_message_id_idx on fcm_analytics_summary(message_id);
+ 
+--- ----------------------------------------------------------------------------
+--- 3. message_targets — one row per (message, app) pair, tracks delivery
+--- ----------------------------------------------------------------------------
+-create table if not exists message_targets (
+-  id              uuid primary key default gen_random_uuid(),
+-  message_id      uuid not null references messages(id) on delete cascade,
+-  -- App deletion is handled transactionally by the app DELETE API: only that
+-  -- app's target rows are removed, while other apps on the same message remain.
+-  app_id          uuid references firebase_apps(id) on delete cascade,
+-  app_name        text,
+-  status          text not null default 'pending' check (status in ('pending', 'sent', 'failed')),
+-  fcm_message_id  text,
+-  error_message   text,
+-  sent_at         timestamptz,
+-  created_at      timestamptz not null default now()
+-);
+-
+-create index if not exists message_targets_message_id_idx on message_targets(message_id);
+-create index if not exists message_targets_app_id_idx on message_targets(app_id);
+-create unique index if not exists message_targets_unique_pair on message_targets(message_id, app_id);
+-
+ -- ----------------------------------------------------------------------------
+ -- updated_at triggers
+ -- ----------------------------------------------------------------------------
+diff --git a/tailwind.config.ts b/tailwind.config.ts
+index d80c2ba..88089aa 100644
+--- a/tailwind.config.ts
++++ b/tailwind.config.ts
+@@ -21,6 +21,11 @@ const config: Config = {
+           dim: "#1F8E82",
+         },
+         danger: "#FF5C68",
++        ax: {
++          navy: "#0f1b3d", ink: "#1f2a44", muted: "#64748b", soft: "#8a97b1", line: "#e6ecf7", canvas: "#f5f8ff",
++          blue: "#2f6df6", blueSoft: "#e8f0ff", green: "#16b364", greenSoft: "#e3f8ec", purple: "#7c5cf5", purpleSoft: "#efebff",
++          orange: "#f59e0b", orangeSoft: "#fff1dc", red: "#ef4466", redSoft: "#ffe8ed",
++        },
+         ink2: "#8B93A7",
+       },
+       fontFamily: {
+diff --git a/types/database.ts b/types/database.ts
+index 3fd1de4..8304b3f 100644
+--- a/types/database.ts
++++ b/types/database.ts
+@@ -8,7 +8,7 @@ export interface Message {
+  notification_title:string|null; notification_body:string|null; notification_image:string|null; analytics_label:string;
+  status:MessageStatus; scheduled_at:string|null; sent_at:string|null;
+  total_apps_targeted:number; total_sent:number; total_failed:number; sent_count:number; delivered:number; delivery_rate:number|null; delivery_failed:number;
+- apps?:MessageApp[]; created_at:string; updated_at:string;
++ apps?:MessageApp[]; stats?:{sent:number;failed:number;delivered:number;shown:number;opened:number;dismissed:number}; created_at:string; updated_at:string;
+ }
+ export interface MessageTarget { id:string; message_id:string; app_id:string|null; analytics_label:string|null; app_name:string|null; status:TargetStatus; fcm_message_id:string|null; error_message:string|null; sent_at:string|null; created_at:string; }
+ export interface MessageWithTargets extends Message { message_targets:(MessageTarget & {firebase_apps:{name:string;app_icon_url?:string|null}|null})[]; }
+\ No newline at end of file
+-- 
+2.43.0
+
