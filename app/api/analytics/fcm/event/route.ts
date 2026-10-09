@@ -14,7 +14,7 @@ const eventSchema = z.object({
   androidVersion: z.string().max(100).optional(),
   deviceModel: z.string().max(150).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-}).strict();
+});
 
 // Android FCM data keys are snake_case. Normalize them at the API boundary,
 // while continuing to support the existing camelCase client contract.
