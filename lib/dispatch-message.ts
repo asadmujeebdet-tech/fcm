@@ -30,6 +30,8 @@ function buildFcmPayload(message: Message, topic: string, targetId: string) {
       topic,
       data: {
         analytics_label: message.analytics_label,
+        target_id: targetId,
+        // Keep the previous key for already-deployed Android clients.
         analytics_target_id: targetId,
       },
       fcm_options: { analytics_label: message.analytics_label },
