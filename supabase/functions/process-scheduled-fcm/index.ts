@@ -199,11 +199,9 @@ function buildMessage(message: Message, topic: string, targetId: string) {
         analytics_target_id: targetId,
       },
       fcm_options: { analytics_label: message.analytics_label },
-      android: {
-        priority: "HIGH",
-        // Android-specific label enables Firebase Messaging report attribution.
-        fcm_options: { analytics_label: message.analytics_label },
-      },
+      // Keep Android delivery config minimal; the top-level FCM options
+      // carries the analytics label for this HTTP v1 message.
+      android: { priority: "HIGH" },
       notification: {
         title: message.notification_title ?? "",
         body: message.notification_body ?? "",
