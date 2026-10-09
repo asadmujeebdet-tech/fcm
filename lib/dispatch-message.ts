@@ -35,7 +35,11 @@ function buildFcmPayload(message: Message, topic: string, targetId: string) {
         analytics_target_id: targetId,
       },
       fcm_options: { analytics_label: message.analytics_label },
-      android: { priority: "HIGH" },
+      android: {
+        priority: "HIGH",
+        // Android-specific label enables Firebase Messaging report attribution.
+        fcm_options: { analytics_label: message.analytics_label },
+      },
       notification: {
         title: message.notification_title ?? "",
         body: message.notification_body ?? "",
